@@ -1,0 +1,16 @@
+{
+  "name": "Tanks",
+  "short_name": "Tanks",
+  "description": "Drive a tank, bounce shots, pop the other tanks.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#2b2620",
+  "theme_color": "#2b2620",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
