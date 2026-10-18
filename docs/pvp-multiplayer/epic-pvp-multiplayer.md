@@ -83,7 +83,7 @@ Status column by matching the Slug column, so keep slugs exact.
 | # | Type | Slug | Title | Covers | Depends on | Status |
 |---|------|------|-------|--------|-----------|--------|
 | 1 | task | pvp-test-harness | Add Vitest and convex-test harness | — | — | released |
-| 2 | task | convex-backend-setup | Add Convex backend and client wiring | R9 | 1 | planned |
+| 2 | task | convex-backend-setup | Add Convex backend and client wiring | R9 | 1 | released |
 | 3 | story | player-identity | Anonymous per-load player identity | R1, R11 | 2 | planned |
 | 4 | story | pvp-sim-rules | Two-player PvP rules in the simulation | R6, R9 | 1 | planned |
 | 5 | story | pvp-map-generator | Random symmetric PvP arena generator | R5, R9 | 1, 4 | planned |
