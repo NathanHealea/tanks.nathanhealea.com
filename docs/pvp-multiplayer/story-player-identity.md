@@ -68,8 +68,8 @@ The user requirement: no login, no account, a GUID generated each time the game 
 
 ## Implementation plan
 
-1. [ ] Add server access helpers `requirePlayerId`, `roleIn(match, playerId)` and `toMatchView(match, role)` — touches `convex/lib/access.ts`, `convex/lib/access.test.ts` — tests T4, T5, T6
-2. [ ] Add the per-load identity module — touches `src/net/identity.ts`, `src/net/identity.test.ts` — tests T1, T2, T3
+1. [x] Add server access helpers `requirePlayerId`, `roleIn(match, playerId)` and `toMatchView(match, role)` — touches `convex/lib/access.ts`, `convex/lib/access.test.ts` — tests T4, T5, T6
+2. [x] Add the per-load identity module — touches `src/net/identity.ts`, `src/net/identity.test.ts` — tests T1, T2, T3
 
 **Must not change:** `LOCAL_PLAYER` and the `p1`/`p2` tank IDs inside the simulation.
 
