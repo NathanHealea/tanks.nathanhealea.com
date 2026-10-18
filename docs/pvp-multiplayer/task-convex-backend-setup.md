@@ -2,7 +2,7 @@
 type: task
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: convex-backend-setup
-status: staged
+status: released
 branch: task/convex-backend-setup
 worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/task-convex-backend-setup
 created: 2026-10-18
@@ -11,7 +11,7 @@ commit_type:         # optional override for the release subject type (default: 
 version: 0.1.2
 review_approved: 2026-10-18
 pr:                  # set by `wi pr`
-tag:                 # set by `wi release`; the tag sits on the branch's last commit
+tag: v0.1.2
 ---
 
 # Add Convex backend and client wiring
@@ -98,3 +98,4 @@ The app is a Vite + React 19 static site on Cloudflare (`wrangler.json`, `vite.c
 - 2026-10-18 — Staging review: no HIGH findings. Fixed: player ids now lowercase-only (index lookups are case-sensitive); schema comment names signals.payload IP addresses; .env.example lists CONVEX_DEPLOYMENT; regenerated _generated bindings. Test audit: 15 of 30 mutants survived (indexes, unions, required fields, id anchor); T3/T4/T5 extended and all 15 now killed.
 - 2026-10-18 — Staged: verification passed; version 0.1.1 → 0.1.2; no changelog file.
 - 2026-10-18 — Review approved.
+- 2026-10-18 — Released 0.1.2 as v0.1.2.
