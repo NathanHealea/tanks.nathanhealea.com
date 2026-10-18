@@ -32,7 +32,7 @@ Add a test runner so the rest of the PvP epic can be built test-first. The repo 
 - `vitest.config.ts` with two projects: `src/**` in `node`, `convex/**` in `edge-runtime`.
 - `npm test` and `npm run test:watch` scripts.
 - Characterization test for campaign levels and a short campaign simulation.
-- `test_command: npm test` in the repo's `CLAUDE.md` `## Work Item Workflow` section, so `wi verify` runs it.
+- `wi verify` running the tests (it detects the `test` script in `package.json`; no `CLAUDE.md` needed).
 
 **Out of scope**
 
@@ -66,10 +66,10 @@ Add a test runner so the rest of the PvP epic can be built test-first. The repo 
 
 ## Implementation plan
 
-1. [ ] Add `vitest`, `convex-test` and `@edge-runtime/vm` as dev dependencies, `vitest.config.ts` with `node` and `edge-runtime` projects, and `test` / `test:watch` scripts — touches `package.json`, `package-lock.json`, `vitest.config.ts`, `tsconfig.json` — tests T1
-2. [ ] Pin campaign levels with snapshot and fairness tests — touches `src/game/levels.test.ts` — tests T2, T3
-3. [ ] Pin a fixed-seed level-1 simulation — touches `src/game/sim.test.ts` — tests T4
-4. [ ] Add a `## Work Item Workflow` section to `CLAUDE.md` with `test_command: npm test` — touches `CLAUDE.md` — tests none (config only)
+1. [x] Add `vitest`, `convex-test` and `@edge-runtime/vm` as dev dependencies, `vitest.config.ts` with `node` and `edge-runtime` projects, and `test` / `test:watch` scripts — touches `package.json`, `package-lock.json`, `vitest.config.ts`, `tsconfig.json` — tests T1
+2. [x] Pin campaign levels with snapshot and fairness tests — touches `src/game/levels.test.ts` — tests T2, T3
+3. [x] Pin a fixed-seed level-1 simulation — touches `src/game/sim.test.ts` — tests T4
+4. [x] Confirm `wi verify` runs `npm run test` through its `package.json` script detection, so no `CLAUDE.md` is needed — touches nothing — tests none (config only)
 
 **Must not change:** Any file under `src/` other than new `*.test.ts` files. `npm run build` output.
 
@@ -77,8 +77,9 @@ Add a test runner so the rest of the PvP epic can be built test-first. The repo 
 
 ## Risks and open questions
 
-- The repo has no `CLAUDE.md`; step 4 creates one holding only the workflow section. Confirm that is wanted, or set `test_command` another way.
+- ~~The repo has no `CLAUDE.md`; step 4 creates one holding only the workflow section.~~ Resolved: `wi` detects the `test` script in `package.json`, so no `CLAUDE.md` is created.
 - `tsconfig.json` includes `src/`; test files must type-check without pulling Vitest globals into app code. Use explicit `import { describe, it, expect } from 'vitest'` rather than globals.
+- T4 snapshots only the final state, so a timing change to something short-lived (a mine that explodes harmlessly one tick later) can pass unnoticed; physics, firing and aiming changes are caught.
 - T4 depends on floating-point results in Node's V8. Fine for a characterization test on one engine; it is not a cross-browser determinism guarantee (see the epic).
 - Versions: pin whatever is current and at least two weeks old at build time; check `vitest` peer compatibility with Vite 8 before installing.
 
@@ -87,3 +88,4 @@ Add a test runner so the rest of the PvP epic can be built test-first. The repo 
 - 2026-10-18 — Planned.
 - 2026-10-18 — Plan approved.
 - 2026-10-18 — Started on branch task/pvp-test-harness from origin/main.
+- 2026-10-18 — Step 4 changed: wi verify already runs npm run test via package.json detection (verified), so no CLAUDE.md is created; R4 still met.
