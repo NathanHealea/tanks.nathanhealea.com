@@ -2,9 +2,9 @@
 type: story
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: player-identity
-status: planned      # planned | in-progress | changes-requested | staged | released
+status: in-progress
 branch: story/player-identity
-worktree_path:       # set by `wi start`
+worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/story-player-identity
 created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
@@ -85,3 +85,4 @@ The user requirement: no login, no account, a GUID generated each time the game 
 
 - 2026-10-18 — Planned.
 - 2026-10-18 — Plan approved.
+- 2026-10-18 — Started on branch story/player-identity from origin/pvp-tank.
