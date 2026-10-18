@@ -2,3 +2,5 @@ node_modules
 dist
 .wrangler
 .env
+.env.local
+.env.*.local
