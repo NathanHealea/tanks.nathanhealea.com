@@ -1,0 +1,88 @@
+---
+type: task
+epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
+slug: pvp-test-harness
+status: planned      # planned | in-progress | changes-requested | staged | released
+branch: task/pvp-test-harness
+worktree_path:       # set by `wi start`
+created: 2026-10-18
+approved: 2026-10-18
+commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
+version:             # set by `wi stage`
+review_approved:     # set by `wi accept`
+pr:                  # set by `wi pr`
+tag:                 # set by `wi release`; the tag sits on the branch's last commit
+---
+
+# Add Vitest and convex-test harness
+
+## Summary
+
+Add a test runner so the rest of the PvP epic can be built test-first. The repo has no tests today; netcode, matchmaking races and map fairness are exactly the kind of logic that breaks quietly. This adds Vitest for the game code and convex-test for Convex functions, plus one characterization test that pins the 50 campaign levels so later refactors of `levels.ts` and `sim.ts` cannot change them unnoticed.
+
+## Context
+
+`package.json` has `build`, `typecheck` and `deploy` scripts and no test script. `wi config` shows `test_command` empty and `verify_commands` of `npm run typecheck` and `npm run build`. The game code in `src/game/` is plain TypeScript with no DOM or three.js imports, so it runs under Node as-is. convex-test needs `vitest` and `@edge-runtime/vm`, and runs `convex/` tests in the `edge-runtime` environment ([convex-test docs](https://docs.convex.dev/testing/convex-test)). Part of epic `pvp-multiplayer`; every later child depends on this.
+
+## Scope
+
+**In scope**
+
+- Dev dependencies `vitest`, `convex-test`, `@edge-runtime/vm`.
+- `vitest.config.ts` with two projects: `src/**` in `node`, `convex/**` in `edge-runtime`.
+- `npm test` and `npm run test:watch` scripts.
+- Characterization test for campaign levels and a short campaign simulation.
+- `test_command: npm test` in the repo's `CLAUDE.md` `## Work Item Workflow` section, so `wi verify` runs it.
+
+**Out of scope**
+
+- Component or browser tests for React and three.js.
+- Any `convex/` source (item 2 adds Convex; the `edge-runtime` project is configured but has no tests until then).
+
+## Requirements
+
+- **R1** — `npm test` runs every `*.test.ts` under `src/` and `convex/` once and exits non-zero on any failure.
+- **R2** — The layouts of all 50 campaign levels are pinned: any change to `getLevel()` output fails a test.
+- **R3** — A fixed-seed campaign simulation is pinned: running level 1 for 600 ticks with a scripted input produces the same final state as today.
+- **R4** — `wi verify` runs the tests alongside typecheck and build.
+
+## Acceptance criteria
+
+- **AC1** (R1) — Given a test that fails, when `npm test` runs, then it exits with a non-zero status.
+- **AC2** (R2) — Given someone edits `tryBuild()` in `levels.ts`, when tests run, then the level characterization test fails and names the first changed level.
+- **AC3** (R3) — Given someone changes bullet or tank physics, when tests run, then the simulation characterization test fails.
+- **AC4** (R4) — Given the harness is merged, when `wi verify` runs, then it runs `npm test`.
+
+## Test plan
+
+| ID | Covers | Test | File | Asserts |
+|----|--------|------|------|---------|
+| T1 | R1 | `harness runs` | `src/game/harness.test.ts` | A trivial assertion passes; deleted once T2 exists if redundant |
+| T2 | R2 | `campaign levels are unchanged` | `src/game/levels.test.ts` | For each index 0–49, `getLevel(i).join('\n')` matches a stored inline snapshot |
+| T3 | R2 | `every campaign level is fair` | `src/game/levels.test.ts` | Each level has one `P`, one `2`, `enemyCount(i)` enemies, and parses without throwing |
+| T4 | R3 | `level 1 replays identically` | `src/game/sim.test.ts` | `createGame(0, ['p1'], 12345)` stepped 600 ticks with a scripted input matches a stored snapshot of tanks, bullets, mines and outcome |
+
+**Not unit testable:** R4 — verified by running `wi verify` and seeing the test step in its output.
+
+## Implementation plan
+
+1. [ ] Add `vitest`, `convex-test` and `@edge-runtime/vm` as dev dependencies, `vitest.config.ts` with `node` and `edge-runtime` projects, and `test` / `test:watch` scripts — touches `package.json`, `package-lock.json`, `vitest.config.ts`, `tsconfig.json` — tests T1
+2. [ ] Pin campaign levels with snapshot and fairness tests — touches `src/game/levels.test.ts` — tests T2, T3
+3. [ ] Pin a fixed-seed level-1 simulation — touches `src/game/sim.test.ts` — tests T4
+4. [ ] Add a `## Work Item Workflow` section to `CLAUDE.md` with `test_command: npm test` — touches `CLAUDE.md` — tests none (config only)
+
+**Must not change:** Any file under `src/` other than new `*.test.ts` files. `npm run build` output.
+
+**High-risk steps:** None.
+
+## Risks and open questions
+
+- The repo has no `CLAUDE.md`; step 4 creates one holding only the workflow section. Confirm that is wanted, or set `test_command` another way.
+- `tsconfig.json` includes `src/`; test files must type-check without pulling Vitest globals into app code. Use explicit `import { describe, it, expect } from 'vitest'` rather than globals.
+- T4 depends on floating-point results in Node's V8. Fine for a characterization test on one engine; it is not a cross-browser determinism guarantee (see the epic).
+- Versions: pin whatever is current and at least two weeks old at build time; check `vitest` peer compatibility with Vite 8 before installing.
+
+## Progress log
+
+- 2026-10-18 — Planned.
+- 2026-10-18 — Plan approved.
