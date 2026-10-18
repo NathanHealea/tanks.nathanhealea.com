@@ -9,7 +9,7 @@ created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
 version: 0.1.2
-review_approved:     # set by `wi accept`
+review_approved: 2026-10-18
 pr:                  # set by `wi pr`
 tag:                 # set by `wi release`; the tag sits on the branch's last commit
 ---
@@ -97,3 +97,4 @@ The app is a Vite + React 19 static site on Cloudflare (`wrangler.json`, `vite.c
 - 2026-10-18 — Build complete. R1 checked from the bundle side: built with VITE_CONVEX_URL unset, the bundle has no deployment URL and no client is created; browser network-panel checks (AC1, AC2) not done in a browser. Convex client adds ~66 kB raw / 18 kB gzip.
 - 2026-10-18 — Staging review: no HIGH findings. Fixed: player ids now lowercase-only (index lookups are case-sensitive); schema comment names signals.payload IP addresses; .env.example lists CONVEX_DEPLOYMENT; regenerated _generated bindings. Test audit: 15 of 30 mutants survived (indexes, unions, required fields, id anchor); T3/T4/T5 extended and all 15 now killed.
 - 2026-10-18 — Staged: verification passed; version 0.1.1 → 0.1.2; no changelog file.
+- 2026-10-18 — Review approved.
