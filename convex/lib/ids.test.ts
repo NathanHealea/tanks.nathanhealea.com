@@ -15,5 +15,6 @@ describe('isPlayerId', () => {
     expect(isPlayerId('3f2504e0-4f89-41d3-ca0c-0305e82c3301')).toBe(false);
     expect(isPlayerId('3f2504e04f8941d39a0c0305e82c3301')).toBe(false);
     expect(isPlayerId(' 3f2504e0-4f89-41d3-9a0c-0305e82c3301 ')).toBe(false);
+    expect(isPlayerId('x' + crypto.randomUUID())).toBe(false);
   });
 });
