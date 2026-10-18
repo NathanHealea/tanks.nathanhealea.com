@@ -3,7 +3,8 @@ import { v } from 'convex/values';
 
 const role = v.union(v.literal('host'), v.literal('guest'));
 
-// Player ids are per-page-load random GUIDs, never tied to a person; nothing here identifies anyone.
+// Player ids are per-page-load random GUIDs, never tied to a person. signals.payload is the exception:
+// WebRTC offers and ICE candidates carry players' IP addresses, so signals must be deleted per match.
 export default defineSchema({
   queue: defineTable({
     playerId: v.string(),
