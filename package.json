@@ -7,7 +7,7 @@
     "dev": "vite --host",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p convex",
     "test": "vitest run --update none",
     "test:watch": "vitest",
     "deploy": "npm run build && wrangler deploy"
