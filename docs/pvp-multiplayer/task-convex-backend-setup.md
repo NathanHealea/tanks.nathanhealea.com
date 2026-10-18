@@ -2,13 +2,13 @@
 type: task
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: convex-backend-setup
-status: in-progress
+status: staged
 branch: task/convex-backend-setup
 worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/task-convex-backend-setup
 created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
-version:             # set by `wi stage`
+version: 0.1.2
 review_approved:     # set by `wi accept`
 pr:                  # set by `wi pr`
 tag:                 # set by `wi release`; the tag sits on the branch's last commit
@@ -59,9 +59,9 @@ The app is a Vite + React 19 static site on Cloudflare (`wrangler.json`, `vite.c
 |----|--------|------|------|---------|
 | T1 | R1 | `client is null without a url` | `src/net/convex.test.ts` | `createConvexClient(undefined)` and `createConvexClient('')` return `null` |
 | T2 | R2 | `client is created with a url` | `src/net/convex.test.ts` | `createConvexClient('https://x.convex.cloud')` returns a `ConvexReactClient` |
-| T3 | R3, R4 | `schema accepts each table` | `convex/schema.test.ts` | convex-test inserts a valid row into `queue`, `matches`, `signals` and reads it back by its index |
-| T4 | R3 | `schema rejects bad rows` | `convex/schema.test.ts` | Inserting a match with an unknown `status` throws |
-| T5 | — | `isPlayerId accepts v4 uuids only` | `convex/lib/ids.test.ts` | Accepts `crypto.randomUUID()` output; rejects empty, too long, non-hex, v1 UUIDs |
+| T3 | R3, R4 | `schema accepts each table` | `convex/schema.test.ts` | convex-test inserts a valid row into `queue`, `matches`, `signals` and reads it back through every index; a match with each of the five statuses is accepted |
+| T4 | R3 | `schema rejects bad rows` | `convex/schema.test.ts` | Inserting a match with an unknown `status`, `kind`, `winner` or `endReason`, or without `hostId` or `seed`; a queue row without `lastSeen`; or a signal with an unknown `to` or `kind` or a non-id `matchId` throws |
+| T5 | — | `isPlayerId accepts v4 uuids only` | `convex/lib/ids.test.ts` | Accepts `crypto.randomUUID()` output; rejects uppercase, empty, too long, non-hex, v1, wrong-variant, unhyphenated, padded and prefixed values |
 
 **Not unit testable:** R1 network silence and R2 single socket — verified manually in the browser network panel per AC1 and AC2.
 
@@ -95,3 +95,5 @@ The app is a Vite + React 19 static site on Cloudflare (`wrangler.json`, `vite.c
 - 2026-10-18 — Started on branch task/convex-backend-setup from origin/pvp-tank.
 - 2026-10-18 — Step 2 also adds tsc -p convex to npm run typecheck, so convex code is type-checked by wi verify; Convex 1.46 did not scaffold convex/tsconfig.json, so step 1 wrote it from Convex's template. Schema pushed to usable-manatee-416 (AC3).
 - 2026-10-18 — Build complete. R1 checked from the bundle side: built with VITE_CONVEX_URL unset, the bundle has no deployment URL and no client is created; browser network-panel checks (AC1, AC2) not done in a browser. Convex client adds ~66 kB raw / 18 kB gzip.
+- 2026-10-18 — Staging review: no HIGH findings. Fixed: player ids now lowercase-only (index lookups are case-sensitive); schema comment names signals.payload IP addresses; .env.example lists CONVEX_DEPLOYMENT; regenerated _generated bindings. Test audit: 15 of 30 mutants survived (indexes, unions, required fields, id anchor); T3/T4/T5 extended and all 15 now killed.
+- 2026-10-18 — Staged: verification passed; version 0.1.1 → 0.1.2; no changelog file.
