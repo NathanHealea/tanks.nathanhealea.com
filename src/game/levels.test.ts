@@ -8,6 +8,10 @@ function countChars(rows: string[], chars: string[]): number {
 }
 
 describe('campaign levels are unchanged', () => {
+  it('there are 50 levels', () => {
+    expect(LEVEL_COUNT).toBe(50);
+  });
+
   it.each(levels)('level $level', ({ index }) => {
     expect(getLevel(index).join('\n')).toMatchSnapshot();
   });
