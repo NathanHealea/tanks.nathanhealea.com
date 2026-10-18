@@ -8,13 +8,17 @@
  * @module
  */
 
+import type * as lib_ids from "../lib/ids.js";
+
 import type {
   ApiFromModules,
   FilterApi,
   FunctionReference,
 } from "convex/server";
 
-declare const fullApi: ApiFromModules<{}>;
+declare const fullApi: ApiFromModules<{
+  "lib/ids": typeof lib_ids;
+}>;
 
 /**
  * A utility for referencing Convex functions in your app's public API.
