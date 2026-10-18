@@ -9,7 +9,7 @@ created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
 version: 0.1.1
-review_approved:     # set by `wi accept`
+review_approved: 2026-10-18
 pr:                  # set by `wi pr`
 tag:                 # set by `wi release`; the tag sits on the branch's last commit
 ---
@@ -95,3 +95,4 @@ Add a test runner so the rest of the PvP epic can be built test-first. The repo 
 - 2026-10-18 — Step 4 changed: wi verify already runs npm run test via package.json detection (verified), so no CLAUDE.md is created; R4 still met.
 - 2026-10-18 — Staging review: test-engineer audit found hit detection, bounce limit, outcome, clash and mine rules unpinned (15 of 32 mutants survived). Added T5-T9, strengthened T3, made npm test fail on missing snapshots; re-ran the 14 relevant mutants, all killed.
 - 2026-10-18 — Staged: verification passed; version 0.1.0 → 0.1.1; no changelog file.
+- 2026-10-18 — Review approved.
