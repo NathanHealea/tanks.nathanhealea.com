@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BULLET, DT, MINE } from './config';
+import { worldToCell } from './grid';
 import { IDLE_INPUT, createGame, step } from './sim';
 import { CORK, EMPTY, type GameEvent, type GameState, type PlayerInput, type TankState } from './types';
 
@@ -127,7 +128,7 @@ describe('sim', () => {
     expect(firstTickOf(s, 'explode', 700)).toBe(45);
   });
 
-  it('a tank never trips its own team’s mine', () => {
+  it("a tank never trips its own team's mine", () => {
     const { s, p1, enemy } = arena();
     place(p1, 0.3, 0);
     place(enemy, 8, 5);
@@ -140,8 +141,12 @@ describe('sim', () => {
   it('a blast pops tanks and breaks cork inside its radius only', () => {
     const { s, p1, enemy } = arena();
     const g = s.grid;
-    const near = 7 * g.cols + 11; // center (1.5, 0.5), 1.58 from the mine
-    const far = 7 * g.cols + 12; // center (2.5, 0.5), 2.55 from the mine
+    const cellIndex = (x: number, z: number) => {
+      const [c, r] = worldToCell(g, x, z);
+      return r * g.cols + c;
+    };
+    const near = cellIndex(1.5, 0.5); // 1.58 from the mine
+    const far = cellIndex(2.5, 0.5); // 2.55 from the mine
     g.cells[near] = CORK;
     g.cells[far] = CORK;
     place(enemy, 0, 1.2);

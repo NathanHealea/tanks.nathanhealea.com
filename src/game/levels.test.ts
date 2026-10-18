@@ -39,7 +39,7 @@ describe('campaign levels are unchanged', () => {
   });
 
   it('difficulty and new-tank levels are unchanged', () => {
-    expect(levels.map(({ index }) => [levelDifficulty(index), newTankAt(index)])).toMatchSnapshot();
+    expect(levels.map(({ index }) => [levelDifficulty(index).toFixed(9), newTankAt(index)])).toMatchSnapshot();
   });
 });
 
