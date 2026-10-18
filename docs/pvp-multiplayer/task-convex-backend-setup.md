@@ -67,10 +67,10 @@ The app is a Vite + React 19 static site on Cloudflare (`wrangler.json`, `vite.c
 
 ## Implementation plan
 
-1. [ ] Add `convex`, run `npx convex dev` to scaffold `convex/`, add `.env.local` to `.gitignore` and an `.env.example` — touches `package.json`, `package-lock.json`, `.gitignore`, `.env.example`, `convex/tsconfig.json` — tests none (scaffold)
-2. [ ] Define the schema and its tests — touches `convex/schema.ts`, `convex/schema.test.ts` — tests T3, T4
-3. [ ] Add the GUID validator — touches `convex/lib/ids.ts`, `convex/lib/ids.test.ts` — tests T5
-4. [ ] Create the optional client and wrap `App` in `ConvexProvider` when present — touches `src/net/convex.ts`, `src/net/convex.test.ts`, `src/main.tsx` — tests T1, T2
+1. [x] Add `convex`, run `npx convex dev` to scaffold `convex/`, add `.env.local` to `.gitignore` and an `.env.example` — touches `package.json`, `package-lock.json`, `.gitignore`, `.env.example`, `convex/tsconfig.json` — tests none (scaffold)
+2. [x] Define the schema and its tests — touches `convex/schema.ts`, `convex/schema.test.ts` — tests T3, T4
+3. [x] Add the GUID validator — touches `convex/lib/ids.ts`, `convex/lib/ids.test.ts` — tests T5
+4. [x] Create the optional client and wrap `App` in `ConvexProvider` when present — touches `src/net/convex.ts`, `src/net/convex.test.ts`, `src/main.tsx` — tests T1, T2
 
 **Schema (proposed):**
 
@@ -93,3 +93,5 @@ The app is a Vite + React 19 static site on Cloudflare (`wrangler.json`, `vite.c
 - 2026-10-18 — Planned.
 - 2026-10-18 — Plan approved.
 - 2026-10-18 — Started on branch task/convex-backend-setup from origin/pvp-tank.
+- 2026-10-18 — Step 2 also adds tsc -p convex to npm run typecheck, so convex code is type-checked by wi verify; Convex 1.46 did not scaffold convex/tsconfig.json, so step 1 wrote it from Convex's template. Schema pushed to usable-manatee-416 (AC3).
+- 2026-10-18 — Build complete. R1 checked from the bundle side: built with VITE_CONVEX_URL unset, the bundle has no deployment URL and no client is created; browser network-panel checks (AC1, AC2) not done in a browser. Convex client adds ~66 kB raw / 18 kB gzip.
