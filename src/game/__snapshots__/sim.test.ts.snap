@@ -1,0 +1,90 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`sim > level 1 replays identically 1`] = `
+{
+  "bullets": [
+    {
+      "bounces": 1,
+      "id": 5,
+      "life": 5.9000000000000075,
+      "owner": "ai0",
+      "pos": {
+        "x": -8.221494628150555,
+        "z": 4.826844686116252,
+      },
+      "vel": {
+        "x": -5.279952535202956,
+        "z": 2.8499300387911055,
+      },
+    },
+    {
+      "bounces": 0,
+      "id": 6,
+      "life": 7.750000000000001,
+      "owner": "p1",
+      "pos": {
+        "x": -9.463908026317236,
+        "z": -0.08965461838598554,
+      },
+      "vel": {
+        "x": 2.0768747585447818,
+        "z": -6.159268725856955,
+      },
+    },
+  ],
+  "mines": [],
+  "outcome": null,
+  "tanks": [
+    {
+      "ai": {
+        "fireDelay": 2.9063446085999667,
+        "lastPos": {
+          "x": 3.5,
+          "z": -1.5,
+        },
+        "path": [],
+        "retarget": 0,
+        "stuck": 0,
+        "sweep": -0.7500000000000004,
+        "sweepDir": 1,
+      },
+      "alive": true,
+      "body": -1.5707963267948966,
+      "color": "#a27a4c",
+      "control": "ai",
+      "fireCooldown": 0,
+      "id": "ai0",
+      "kind": "turret",
+      "mineReload": 0,
+      "mines": 0,
+      "pos": {
+        "x": 3.5,
+        "z": -1.5,
+      },
+      "shotReload": 0,
+      "shots": 1,
+      "team": 1,
+      "turret": -2.0871881350917874,
+    },
+    {
+      "alive": true,
+      "body": 3.141592653589793,
+      "color": "#3d6da8",
+      "control": "local",
+      "fireCooldown": 0,
+      "id": "p1",
+      "kind": "player",
+      "mineReload": 0,
+      "mines": 1,
+      "pos": {
+        "x": -9.58,
+        "z": 1.572420021942408,
+      },
+      "shotReload": -0.016666666666664564,
+      "shots": 1,
+      "team": 0,
+      "turret": -2.58303728102584,
+    },
+  ],
+}
+`;
