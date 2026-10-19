@@ -2,9 +2,9 @@
 type: story
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: disconnect-and-cleanup
-status: planned      # planned | in-progress | changes-requested | staged | released
+status: in-progress
 branch: story/disconnect-and-cleanup
-worktree_path:       # set by `wi start`
+worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/story-disconnect-and-cleanup
 created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
@@ -97,3 +97,4 @@ Matches have `status` and `endReason` (item 2), and Convex learns of round resul
 
 - 2026-10-18 — Planned.
 - 2026-10-18 — Plan approved.
+- 2026-10-19 — Started on branch story/disconnect-and-cleanup from origin/pvp-tank.
