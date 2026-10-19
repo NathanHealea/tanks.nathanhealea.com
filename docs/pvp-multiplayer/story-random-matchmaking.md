@@ -2,13 +2,13 @@
 type: story
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: random-matchmaking
-status: in-progress
+status: staged
 branch: story/random-matchmaking
 worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/story-random-matchmaking
 created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
-version:             # set by `wi stage`
+version: 0.5.0
 review_approved:     # set by `wi accept`
 pr:                  # set by `wi pr`
 tag:                 # set by `wi release`; the tag sits on the branch's last commit
@@ -97,3 +97,6 @@ The schema from `convex-backend-setup` defines `queue` and `matches`. `player-id
 - 2026-10-18 — Started on branch story/random-matchmaking from origin/pvp-tank.
 - 2026-10-18 — Step 1: T4 as planned (A then C join, B pairs with A) cannot happen through joinQueue because C would pair with A; the test seeds two live waiters directly, which happens when a stale entry revives by heartbeat.
 - 2026-10-18 — Step 3: the hook's rules live in a plain QuickMatch class (src/net/quickMatch.ts) tested directly, because the repo has no React test library; useQuickMatch is a thin untested wrapper. T11 file renamed accordingly.
+- 2026-10-18 — Staging review: security HIGH (stale queue head blocked pairing) and MED (dead connecting match trapped players) fixed in f97d726; code review MEDs (stray heartbeat timer, pagehide state not reaching React) and LOWs (stuck matched, unlogged cancel failure, duplicate lookup) fixed. Open for the user: no rate limit on joinQueue (needs a dependency or a counter table).
+- 2026-10-18 — Test audit (second cycle): HIGH (non-connecting matches untested against the connect timeout) and a real bug (match arriving before join resolved leaked a heartbeat timer) fixed; untested paths covered; all 8 surviving mutants now killed. Remaining LOW: the 5-page sweep cap value is untested (cap of 1 is caught).
+- 2026-10-18 — Staged: verification passed; version 0.4.0 → 0.5.0; no changelog file.
