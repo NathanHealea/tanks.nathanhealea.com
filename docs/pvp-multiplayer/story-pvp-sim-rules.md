@@ -9,7 +9,7 @@ created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
 version: 0.3.0
-review_approved:     # set by `wi accept`
+review_approved: 2026-10-18
 pr:                  # set by `wi pr`
 tag:                 # set by `wi release`; the tag sits on the branch's last commit
 ---
@@ -97,3 +97,4 @@ Teach the simulation to run a PvP round: two player tanks on opposing teams, no 
 - 2026-10-18 — Staging review: no HIGH/MED. Fixed: GameState.winner and applyRound share a runtime-checked PvpPlayer type (removes an unchecked cast item 9 would need; rejects junk results). T9 row now says winner. Added layout-size validation to item 9's protocol test plan (security review: parseLevel has no bounds).
 - 2026-10-18 — Test audit: 25 of 32 mutants killed; 3 equivalent, 1 unreachable guard, 1 untouched campaign code; fixed the 2 real gaps (PvP outcomeTime, exact spawn error) and both are now killed. Comment and import order corrected.
 - 2026-10-18 — Staged: verification passed; version 0.2.0 → 0.3.0; no changelog file.
+- 2026-10-18 — Review approved.
