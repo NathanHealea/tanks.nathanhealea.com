@@ -12,7 +12,8 @@ export default defineSchema({
     lastSeen: v.number(),
   })
     .index('by_player', ['playerId'])
-    .index('by_joined', ['joinedAt']),
+    .index('by_joined', ['joinedAt'])
+    .index('by_seen', ['lastSeen']),
 
   matches: defineTable({
     kind: v.union(v.literal('quick'), v.literal('private')),
