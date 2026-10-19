@@ -193,4 +193,22 @@ describe('protocol', () => {
     const fine = { ...SNAP, events: [{ type: 'fire', pos: { x: 0, z: 0 }, angle: 1, owner: 'p1' }] };
     expect(parseHostMessage(JSON.stringify(fine))).not.toBeNull();
   });
+
+  it('checks every field the guest reads from a snapshot', () => {
+    const SNAP = snapshot();
+    const at = { x: 0, z: 0 };
+    const bad: Record<string, unknown>[] = [
+      { events: [{ type: 'pop', pos: at, color: '#fff' }] },
+      { events: [{ type: 'fire', pos: at, angle: 1 }] },
+      { events: [{ type: 'wallBreak', pos: at, col: -1, row: 2 }] },
+      { mines: [{ pos: at, age: 1 }] },
+      { bullets: [{ id: 1, pos: at, vel: { x: 1 } }] },
+      { winner: 'p3' },
+      { mines: Array.from({ length: 33 }, (_, id) => ({ id, pos: at, age: 1 })) },
+      { broken: Array.from({ length: 281 }, (_, i) => i) },
+    ];
+    for (const change of bad) {
+      expect(parseHostMessage(JSON.stringify({ ...SNAP, ...change })), JSON.stringify(change).slice(0, 60)).toBeNull();
+    }
+  });
 });

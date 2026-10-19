@@ -172,6 +172,37 @@ describe('HostSession', () => {
     expect(p2ShotsOver(host, 5)).toBe(1);
     expect(p2(host).pos.x).toBeGreaterThan(OPEN_P2_X());
   });
+
+  it('mine counters apply once per increase, capped, and countdown presses are dropped', () => {
+    const [hostLink, guestLink] = createLinkPair();
+    const host = new HostSession(hostLink, OPEN, 1);
+    let spot = 0;
+    const minesOver = (ticks: number) => {
+      let laid = 0;
+      for (let i = 0; i < ticks; i++, spot++) {
+        // Refill and move p2 to a fresh spot so the magazine and the mine spacing rule never block a drop.
+        p2(host).mines = 99;
+        p2(host).pos = { x: -8 + (spot % 16), z: -5 + (Math.floor(spot / 16) % 10) };
+        laid += host.advance(DT, IDLE_INPUT).filter((e) => e.type === 'mineDrop').length;
+      }
+      return laid;
+    };
+    sendInput(guestLink, { seq: 1, mine: 1 });
+    expect(minesOver(5)).toBe(1);
+    sendInput(guestLink, { seq: 2, mine: 1 });
+    expect(minesOver(5)).toBe(0);
+    sendInput(guestLink, { seq: 3, mine: 2 });
+    expect(minesOver(5)).toBe(1);
+    sendInput(guestLink, { seq: 4, mine: 12 });
+    expect(minesOver(20)).toBe(3);
+
+    const [countLink, countGuest] = createLinkPair();
+    const counting = new HostSession(countLink, OPEN, 1, { countdownTicks: 10 });
+    sendInput(countGuest, { seq: 1, mine: 1 });
+    let laid = 0;
+    for (let i = 0; i < 30; i++) laid += counting.advance(DT, IDLE_INPUT).filter((e) => e.type === 'mineDrop').length;
+    expect(laid).toBe(0);
+  });
 });
 
 function OPEN_P2_X(): number {

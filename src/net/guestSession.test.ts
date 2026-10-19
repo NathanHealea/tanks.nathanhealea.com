@@ -248,4 +248,69 @@ describe('GuestSession', () => {
     for (let i = 0; i < 200; i++) guest.advance(DT, IDLE_INPUT);
     expect(guest.countdownLeft).toBe(0);
   });
+
+  it('stamps its own round on input', () => {
+    const [host, link] = createLinkPair();
+    const inputs = receivedInputs(host);
+    const guest = new GuestSession(link, OPEN, 1, 3);
+    guest.advance(DT, IDLE_INPUT);
+    guest.advance(DT, IDLE_INPUT);
+    vi.advanceTimersByTime(0);
+    expect(inputs[0].round).toBe(3);
+  });
+
+  it('a fire pressed in a frame of several ticks counts once', () => {
+    const [host, link] = createLinkPair();
+    const inputs = receivedInputs(host);
+    const guest = new GuestSession(link, OPEN, 1);
+    guest.advance(DT * 2 + DT / 2, { ...IDLE_INPUT, fire: true });
+    guest.advance(DT * 2 + DT / 2, IDLE_INPUT);
+    vi.advanceTimersByTime(0);
+    expect(inputs.at(-1)!.fire).toBe(1);
+  });
+
+  it('follows a snapshot stream 66 ms behind, never backward, and catches up after a stall', () => {
+    const [host, link] = createLinkPair();
+    const guest = new GuestSession(link, OPEN, 1);
+    const send = (tick: number) => sendSnap(host, { tick, time: tick * DT, tanks: [tank('p1', { pos: { x: tick * DT, z: 0 } }), tank('p2', {})] });
+    let last = -Infinity;
+    for (let tick = 2; tick <= 40; tick += 2) {
+      // Ticks 20 and 22 arrive swapped.
+      if (tick === 20) send(22);
+      else if (tick === 22) send(20);
+      else send(tick);
+      guest.advance(DT, IDLE_INPUT);
+      guest.advance(DT, IDLE_INPUT);
+      const x = guest.state.tanks.find((t) => t.id === 'p1')!.pos.x;
+      expect(x).toBeGreaterThanOrEqual(last - 1e-9);
+      last = x;
+    }
+    expect(last).toBeCloseTo(40 * DT - INTERPOLATION_DELAY, 5);
+    // Half a second with nothing, then one snapshot: the view jumps to it rather than crawling.
+    send(70);
+    guest.advance(DT, IDLE_INPUT);
+    expect(guest.state.tanks.find((t) => t.id === 'p1')!.pos.x).toBeCloseTo(70 * DT - INTERPOLATION_DELAY, 5);
+  });
+
+  it('blends bullets between snapshots and keeps one that vanished until the newer snapshot is reached', () => {
+    const [host, link] = createLinkPair();
+    const guest = new GuestSession(link, OPEN, 1);
+    const bullet = (id: number, x: number) => ({ id, owner: 'p1', pos: { x, z: 0 }, vel: { x: 6.5, z: 0 }, bounces: 1, life: 5 });
+    sendSnap(host, { tick: 60, time: 1.0, bullets: [bullet(1, 0), bullet(2, 3)] });
+    guest.advance(0, IDLE_INPUT);
+    sendSnap(host, { tick: 72, time: 1.2, bullets: [bullet(1, 1)] });
+    guest.advance(0.1 + INTERPOLATION_DELAY, IDLE_INPUT);
+    const byId = new Map(guest.state.bullets.map((b) => [b.id, b]));
+    expect(byId.get(1)!.pos.x).toBeCloseTo(0.5, 5);
+    expect(byId.get(2)?.pos.x).toBe(3);
+  });
+
+  it('ignores a broken cell index outside the grid', () => {
+    const [host, link] = createLinkPair();
+    const guest = new GuestSession(link, OPEN, 1);
+    const cells = guest.state.grid.cells.length;
+    sendSnap(host, { tick: 4, time: 1.0, broken: [10_000] });
+    expect(guest.advance(DT, IDLE_INPUT).filter((e) => e.type === 'wallBreak')).toEqual([]);
+    expect(guest.state.grid.cells.length).toBe(cells);
+  });
 });
