@@ -32,7 +32,9 @@ export default defineSchema({
     hostScore: v.number(),
     guestScore: v.number(),
     winner: v.optional(role),
-    endReason: v.optional(v.union(v.literal('score'), v.literal('forfeit'), v.literal('timeout'))),
+    endReason: v.optional(
+      v.union(v.literal('score'), v.literal('forfeit'), v.literal('timeout'), v.literal('left'), v.literal('connection')),
+    ),
     createdAt: v.number(),
     hostSeen: v.number(),
     guestSeen: v.optional(v.number()),
@@ -44,6 +46,13 @@ export default defineSchema({
     .index('by_host', ['hostId'])
     .index('by_guest', ['guestId'])
     .index('by_status', ['status', 'createdAt']),
+
+  // Kept apart from matches: a heartbeat written to the match row would re-run both players' myMatch every beat.
+  presence: defineTable({
+    matchId: v.id('matches'),
+    role,
+    lastSeen: v.number(),
+  }).index('by_match', ['matchId', 'role']),
 
   signals: defineTable({
     matchId: v.id('matches'),

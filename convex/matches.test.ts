@@ -1,8 +1,9 @@
 /// <reference types="vite/client" />
 import { convexTest } from 'convex-test';
 import { ConvexError } from 'convex/values';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { api } from './_generated/api';
+import type { Id } from './_generated/dataModel';
 import schema from './schema';
 
 const modules = import.meta.glob('./**/*.*s');
@@ -48,7 +49,15 @@ async function seedFinishedMatch(
   return { matchId, hostId, guestId };
 }
 
+async function seedPresence(t: Tester, matchId: Id<'matches'>, role: 'host' | 'guest', lastSeen: number) {
+  await t.run((ctx) => ctx.db.insert('presence', { matchId, role, lastSeen }));
+}
+
 describe('matches', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("reportRound accepts only the host's next round", async () => {
     const t = convexTest(schema, modules);
     const { matchId, hostId, guestId } = await seedPlayingMatch(t);
@@ -246,5 +255,176 @@ describe('matches', () => {
       t.mutation(api.matches.requestRematch, { playerId: hostId, matchId }),
       'ALREADY_IN_MATCH',
     );
+  });
+
+  it('heartbeat writes presence only', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const t = convexTest(schema, modules);
+    const { matchId, hostId, guestId } = await seedPlayingMatch(t);
+    const load = () => t.run((ctx) => ctx.db.get(matchId));
+    const presenceOf = (id: Id<'matches'>) =>
+      t.run(async (ctx) => (await ctx.db.query('presence').collect()).filter((p) => p.matchId === id));
+    const before = await load();
+
+    expect(await t.mutation(api.matches.heartbeat, { playerId: hostId, matchId })).toBeNull();
+    expect(await presenceOf(matchId)).toMatchObject([{ matchId, role: 'host', lastSeen: 1_000_000 }]);
+
+    vi.setSystemTime(1_005_000);
+    await t.mutation(api.matches.heartbeat, { playerId: hostId, matchId });
+    await t.mutation(api.matches.heartbeat, { playerId: guestId, matchId });
+    const rows = await presenceOf(matchId);
+    expect(rows).toHaveLength(2);
+    expect(rows.find((p) => p.role === 'host')?.lastSeen).toBe(1_005_000);
+    expect(rows.find((p) => p.role === 'guest')?.lastSeen).toBe(1_005_000);
+    expect(await load()).toEqual(before);
+
+    await expectConvexErrorAsync(
+      t.mutation(api.matches.heartbeat, { playerId: crypto.randomUUID(), matchId }),
+      'Not in this match',
+    );
+    await expectConvexErrorAsync(
+      t.mutation(api.matches.heartbeat, { playerId: 'not-a-guid', matchId }),
+      'Invalid player id',
+    );
+    expect(await presenceOf(matchId)).toHaveLength(2);
+
+    const finished = await seedFinishedMatch(t);
+    const finishedBefore = await t.run((ctx) => ctx.db.get(finished.matchId));
+    await t.mutation(api.matches.heartbeat, { playerId: finished.hostId, matchId: finished.matchId });
+    await t.mutation(api.matches.heartbeat, { playerId: finished.guestId, matchId: finished.matchId });
+    expect(await presenceOf(finished.matchId)).toEqual([]);
+    expect(await t.run((ctx) => ctx.db.get(finished.matchId))).toEqual(finishedBefore);
+  });
+
+  it('leave forfeits to the other role', async () => {
+    const t = convexTest(schema, modules);
+    const { matchId, hostId, guestId } = await seedPlayingMatch(t);
+    const load = () => t.run((ctx) => ctx.db.get(matchId));
+
+    await expectConvexErrorAsync(
+      t.mutation(api.matches.leave, { playerId: crypto.randomUUID(), matchId }),
+      'Not in this match',
+    );
+    await expectConvexErrorAsync(t.mutation(api.matches.leave, { playerId: 'not-a-guid', matchId }), 'Invalid player id');
+    expect(await load()).toMatchObject({ status: 'playing' });
+
+    expect(await t.mutation(api.matches.leave, { playerId: guestId, matchId })).toBeNull();
+    const left = await load();
+    expect(left).toMatchObject({ status: 'finished', winner: 'host', endReason: 'left' });
+
+    expect(await t.mutation(api.matches.leave, { playerId: hostId, matchId })).toBeNull();
+    expect(await load()).toEqual(left);
+
+    const second = await seedPlayingMatch(t);
+    await t.mutation(api.matches.leave, { playerId: second.hostId, matchId: second.matchId });
+    expect(await t.run((ctx) => ctx.db.get(second.matchId))).toMatchObject({
+      status: 'finished', winner: 'guest', endReason: 'left',
+    });
+
+    const byScore = await seedFinishedMatch(t);
+    const byScoreBefore = await t.run((ctx) => ctx.db.get(byScore.matchId));
+    await t.mutation(api.matches.leave, { playerId: byScore.guestId, matchId: byScore.matchId });
+    expect(await t.run((ctx) => ctx.db.get(byScore.matchId))).toEqual(byScoreBefore);
+  });
+
+  it('reportLost with stale opponent wins', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const t = convexTest(schema, modules);
+    const { matchId, hostId, guestId } = await seedPlayingMatch(t);
+    await seedPresence(t, matchId, 'host', 1_000_000 - 20_000);
+    await seedPresence(t, matchId, 'guest', 1_000_000);
+
+    await expectConvexErrorAsync(
+      t.mutation(api.matches.reportLost, { playerId: crypto.randomUUID(), matchId }),
+      'Not in this match',
+    );
+    await expectConvexErrorAsync(
+      t.mutation(api.matches.reportLost, { playerId: 'not-a-guid', matchId }),
+      'Invalid player id',
+    );
+    expect(await t.run((ctx) => ctx.db.get(matchId))).toMatchObject({ status: 'playing' });
+
+    expect(await t.mutation(api.matches.reportLost, { playerId: guestId, matchId })).toEqual({
+      status: 'finished', winner: 'guest', endReason: 'timeout',
+    });
+    expect(await t.run((ctx) => ctx.db.get(matchId))).toMatchObject({
+      status: 'finished', winner: 'guest', endReason: 'timeout',
+    });
+    expect(await t.mutation(api.matches.reportLost, { playerId: hostId, matchId })).toEqual({
+      status: 'finished', winner: 'guest', endReason: 'timeout',
+    });
+
+    const silentGuest = await seedPlayingMatch(t);
+    await seedPresence(t, silentGuest.matchId, 'host', 1_000_000 - 1_000);
+    expect(
+      await t.mutation(api.matches.reportLost, { playerId: silentGuest.hostId, matchId: silentGuest.matchId }),
+    ).toEqual({ status: 'finished', winner: 'host', endReason: 'timeout' });
+  });
+
+  it('reportLost with both fresh abandons', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const t = convexTest(schema, modules);
+    const { matchId, hostId, guestId } = await seedPlayingMatch(t);
+    await seedPresence(t, matchId, 'host', 1_000_000 - 1_000);
+    await seedPresence(t, matchId, 'guest', 1_000_000 - 1_000);
+    const load = () => t.run((ctx) => ctx.db.get(matchId));
+
+    const first = await t.mutation(api.matches.reportLost, { playerId: hostId, matchId });
+    expect(first).toEqual({ status: 'abandoned', winner: null, endReason: 'connection' });
+    const after = await load();
+    expect(after).toMatchObject({ status: 'abandoned', endReason: 'connection' });
+    expect(after?.winner).toBeUndefined();
+
+    expect(await t.mutation(api.matches.reportLost, { playerId: guestId, matchId })).toEqual(first);
+    expect(await load()).toEqual(after);
+
+    const byScore = await seedFinishedMatch(t);
+    const byScoreBefore = await t.run((ctx) => ctx.db.get(byScore.matchId));
+    expect(
+      await t.mutation(api.matches.reportLost, { playerId: byScore.guestId, matchId: byScore.matchId }),
+    ).toEqual({ status: 'finished', winner: 'host', endReason: 'score' });
+    expect(await t.run((ctx) => ctx.db.get(byScore.matchId))).toEqual(byScoreBefore);
+  });
+
+  it('leaving before play starts ends the match with no winner', async () => {
+    const t = convexTest(schema, modules);
+    const { matchId, hostId } = await seedPlayingMatch(t);
+    await t.run((ctx) => ctx.db.patch(matchId, { status: 'connecting' }));
+    await t.mutation(api.matches.leave, { playerId: hostId, matchId });
+    const left = await t.run((ctx) => ctx.db.get(matchId));
+    expect(left).toMatchObject({ status: 'abandoned', endReason: 'left' });
+    expect(left?.winner).toBeUndefined();
+
+    const owner = crypto.randomUUID();
+    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: owner });
+    const waiting = await t.run((ctx) => ctx.db.query('matches').withIndex('by_code', (q) => q.eq('code', code)).unique());
+    await t.mutation(api.matches.leave, { playerId: owner, matchId: waiting!._id });
+    expect(await t.run((ctx) => ctx.db.get(waiting!._id))).toMatchObject({ status: 'abandoned', endReason: 'left' });
+  });
+
+  it('a waiting private code is kept alive by its host only', async () => {
+    const t = convexTest(schema, modules);
+    const owner = crypto.randomUUID();
+    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: owner });
+    const match = await t.run((ctx) => ctx.db.query('matches').withIndex('by_code', (q) => q.eq('code', code)).unique());
+    await t.mutation(api.matches.heartbeat, { playerId: owner, matchId: match!._id });
+    const rows = await t.run((ctx) => ctx.db.query('presence').collect());
+    expect(rows.map((r) => r.role)).toEqual(['host']);
+  });
+
+  it('an opponent exactly at the staleness limit still counts as present', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const t = convexTest(schema, modules);
+    const { matchId, hostId } = await seedPlayingMatch(t);
+    await seedPresence(t, matchId, 'guest', 1_000_000 - 15_000);
+    expect(await t.mutation(api.matches.reportLost, { playerId: hostId, matchId })).toEqual({
+      status: 'abandoned',
+      winner: null,
+      endReason: 'connection',
+    });
   });
 });

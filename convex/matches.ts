@@ -1,7 +1,7 @@
 import { ConvexError, v } from 'convex/values';
-import type { Id } from './_generated/dataModel';
-import { mutation } from './_generated/server';
-import { loadMatchAs } from './lib/access';
+import type { Doc, Id } from './_generated/dataModel';
+import { mutation, type QueryCtx } from './_generated/server';
+import { loadMatchAs, type Role } from './lib/access';
 import { activeMatchFor } from './matchmaking';
 
 // Mirrors ROUNDS_TO_WIN in src/game/config.ts, which the browser uses; convex/ does not import from src/.
@@ -89,5 +89,72 @@ export const cancelRematch = mutation({
     if (match.hostRematch && match.guestRematch) return null;
     await ctx.db.patch(matchId, role === 'host' ? { hostRematch: false } : { guestRematch: false });
     return null;
+  },
+});
+
+/** A player whose last heartbeat is older than this has gone (R4); the client reports silence after the same 15 s. */
+export const PRESENCE_STALE_MS = 15_000;
+
+type Outcome = { status: Doc<'matches'>['status']; winner: Role | null; endReason: Doc<'matches'>['endReason'] };
+
+const other = (role: Role): Role => (role === 'host' ? 'guest' : 'host');
+const outcomeOf = (match: Doc<'matches'>): Outcome => ({
+  status: match.status,
+  winner: match.winner ?? null,
+  endReason: match.endReason,
+});
+
+async function presenceOf(ctx: Pick<QueryCtx, 'db'>, matchId: Id<'matches'>, role: Role) {
+  return await ctx.db
+    .query('presence')
+    .withIndex('by_match', (q) => q.eq('matchId', matchId).eq('role', role))
+    .unique();
+}
+
+/** Writes only the caller's presence row, so a beat does not re-run either player's myMatch. */
+export const heartbeat = mutation({
+  args: { playerId: v.string(), matchId: v.id('matches') },
+  handler: async (ctx, { playerId, matchId }) => {
+    const { match, role } = await loadMatchAs(ctx, matchId, playerId);
+    // A waiting private code has only its host, whose beat shows the code is still being offered (R9).
+    if (match.status !== 'waiting' && match.status !== 'connecting' && match.status !== 'playing') return null;
+    const now = Date.now();
+    const mine = await presenceOf(ctx, matchId, role);
+    if (mine) await ctx.db.patch(mine._id, { lastSeen: now });
+    else await ctx.db.insert('presence', { matchId, role, lastSeen: now });
+    return null;
+  },
+});
+
+/** Leaving a match in play hands the other player the win. Before play starts there is nothing to win. */
+export const leave = mutation({
+  args: { playerId: v.string(), matchId: v.id('matches') },
+  handler: async (ctx, { playerId, matchId }) => {
+    const { match, role } = await loadMatchAs(ctx, matchId, playerId);
+    if (match.status === 'playing') {
+      await ctx.db.patch(matchId, { status: 'finished', winner: other(role), endReason: 'left' });
+    } else if (match.status === 'connecting' || match.status === 'waiting') {
+      await ctx.db.patch(matchId, { status: 'abandoned', endReason: 'left' });
+    }
+    return null;
+  },
+});
+
+/**
+ * The caller's link went silent. Presence decides who is at fault: a stale opponent loses; if both are still
+ * heartbeating, the link failed between two live players and nobody wins. Later reports return the first result.
+ */
+export const reportLost = mutation({
+  args: { playerId: v.string(), matchId: v.id('matches') },
+  handler: async (ctx, { playerId, matchId }): Promise<Outcome> => {
+    const { match, role } = await loadMatchAs(ctx, matchId, playerId);
+    if (match.status !== 'playing') return outcomeOf(match);
+    const opponent = await presenceOf(ctx, matchId, other(role));
+    const end: Partial<Doc<'matches'>> =
+      !opponent || Date.now() - opponent.lastSeen > PRESENCE_STALE_MS
+        ? { status: 'finished', winner: role, endReason: 'timeout' }
+        : { status: 'abandoned', endReason: 'connection' };
+    await ctx.db.patch(matchId, end);
+    return outcomeOf({ ...match, ...end });
   },
 });
