@@ -2,13 +2,13 @@
 type: story
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: host-authoritative-netcode
-status: in-progress
+status: staged
 branch: story/host-authoritative-netcode
 worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/story-host-authoritative-netcode
 created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
-version:             # set by `wi stage`
+version: 0.8.0
 review_approved:     # set by `wi accept`
 pr:                  # set by `wi pr`
 tag:                 # set by `wi release`; the tag sits on the branch's last commit
@@ -104,3 +104,7 @@ Run a live PvP match over the peer link. The host's browser runs the real simula
 - 2026-10-18 — Plan approved.
 - 2026-10-18 — Started on branch story/host-authoritative-netcode from origin/pvp-tank.
 - 2026-10-18 — Steps 2-3 built test-first. Mutation checks: 12 of 13 killed; the survivor (re-applying the host's own fire on every tick of one frame) is equivalent because a frame is capped at 6 ticks and the fire cooldown is 12. Stopped for user review of step 3 (high-risk).
+- 2026-10-18 — Steps 4-6 built test-first: GuestSession (66 ms interpolation delay, 30 Hz input), HostMatch/GuestMatch round cycle with a 3 s countdown, Convex reportRound. Snapshot rate 30 Hz; measured JSON size 604 B quiet / 1861 B busy (8 shells, 4 mines) = about 18-56 KB/s per direction, within the 1-2 KB estimate; no compact encoding needed.
+- 2026-10-18 — Staging review fixes: input now carries its round (late packets locked out the next round's guest; HIGH); guest emits stand-in wallBreak for cells whose event was lost; guest counts its own countdown and countdownLeft is on GameSession; host messages fully validated and size-capped. Not fixed (logged): one failed reportRound blocks later ones (belongs with disconnect-and-cleanup); effects play ~66 ms ahead of drawn positions (cosmetic).
+- 2026-10-18 — Test audit (second cycle): 3 HIGH and 8 MED coverage gaps (round 2 wiring, guest round stamp, guest mines, render stream, bullets, countdown handover, draw reporting, frame cap) now pinned; all 17 re-run mutants killed. Remaining LOW: session dispose between rounds and a few protocol fields the renderer does not read are untested. Item 10 must map HostMatch's p1/p2 results to reportRound's host/guest (host is always p1).
+- 2026-10-18 — Staged: verification passed; version 0.7.0 → 0.8.0; no changelog file.
