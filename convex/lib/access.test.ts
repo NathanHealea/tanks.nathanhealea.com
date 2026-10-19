@@ -90,27 +90,31 @@ describe('access', () => {
       hostRematch: true,
     });
 
-    for (const [role, playerId] of [['host', hostId], ['guest', guestId]] as const) {
-      const view = toMatchView(match, playerId);
-      const json = JSON.stringify(view);
+    const baseKeys = ['endReason', 'guestScore', 'hostScore', 'id', 'kind', 'role', 'round', 'seed', 'status', 'winner'];
+    const base = {
+      id: match._id,
+      kind: 'private',
+      status: 'finished',
+      seed: 42,
+      round: 3,
+      hostScore: 3,
+      guestScore: 1,
+      winner: 'host',
+      endReason: 'score',
+    };
 
-      expect(Object.keys(view).sort()).toEqual(
-        ['endReason', 'guestScore', 'hostScore', 'id', 'kind', 'role', 'round', 'seed', 'status', 'winner'].sort(),
-      );
+    const hostView = toMatchView(match, hostId);
+    expect(Object.keys(hostView).sort()).toEqual([...baseKeys, 'code', 'expiresAt'].sort());
+    expect(hostView).toEqual({ ...base, role: 'host', code: 'ABCD', expiresAt: 9000 });
+
+    const guestView = toMatchView(match, guestId);
+    expect(Object.keys(guestView).sort()).toEqual([...baseKeys].sort());
+    expect(guestView).toEqual({ ...base, role: 'guest' });
+
+    for (const view of [hostView, guestView]) {
+      const json = JSON.stringify(view);
       expect(json).not.toContain(hostId);
       expect(json).not.toContain(guestId);
-      expect(view).toEqual({
-        id: match._id,
-        role,
-        kind: 'private',
-        status: 'finished',
-        seed: 42,
-        round: 3,
-        hostScore: 3,
-        guestScore: 1,
-        winner: 'host',
-        endReason: 'score',
-      });
     }
   });
 

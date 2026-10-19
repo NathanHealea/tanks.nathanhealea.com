@@ -9,8 +9,10 @@
  */
 
 import type * as lib_access from "../lib/access.js";
+import type * as lib_codes from "../lib/codes.js";
 import type * as lib_ids from "../lib/ids.js";
 import type * as matchmaking from "../matchmaking.js";
+import type * as privateMatch from "../privateMatch.js";
 
 import type {
   ApiFromModules,
@@ -20,8 +22,10 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   "lib/access": typeof lib_access;
+  "lib/codes": typeof lib_codes;
   "lib/ids": typeof lib_ids;
   matchmaking: typeof matchmaking;
+  privateMatch: typeof privateMatch;
 }>;
 
 /**

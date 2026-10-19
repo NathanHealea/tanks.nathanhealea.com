@@ -75,7 +75,9 @@ export async function activeMatchFor(ctx: Pick<QueryCtx, 'db'>, playerId: string
     .collect();
   const now = Date.now();
   const live = (m: Doc<'matches'>) =>
-    ACTIVE.includes(m.status) && !(m.status === 'connecting' && now - m.createdAt > CONNECT_TIMEOUT_MS);
+    ACTIVE.includes(m.status) &&
+    !(m.status === 'connecting' && now - m.createdAt > CONNECT_TIMEOUT_MS) &&
+    !(m.status === 'waiting' && m.expiresAt !== undefined && now > m.expiresAt);
   return [...asHost, ...asGuest].find(live) ?? null;
 }
 
@@ -109,7 +111,7 @@ export const myMatch = query({
   },
 });
 
-function queueEntry(ctx: Pick<QueryCtx, 'db'>, playerId: string) {
+export function queueEntry(ctx: Pick<QueryCtx, 'db'>, playerId: string) {
   return ctx.db
     .query('queue')
     .withIndex('by_player', (q) => q.eq('playerId', playerId))

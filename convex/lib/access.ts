@@ -16,6 +16,9 @@ export interface MatchView {
   guestScore: number;
   winner: Doc<'matches'>['winner'];
   endReason: Doc<'matches'>['endReason'];
+  /** Host of a private match only: the guest never sees the code that let them in. */
+  code?: string;
+  expiresAt?: number;
 }
 
 // ConvexError, not Error: Convex replaces plain error messages with "Server Error" for clients in production.
@@ -48,9 +51,10 @@ export async function loadMatchAs(
  * Takes the caller's id rather than a role so a view can only exist for a member.
  */
 export function toMatchView(match: Doc<'matches'>, playerId: string): MatchView {
-  return {
+  const role = roleIn(match, playerId);
+  const view: MatchView = {
     id: match._id,
-    role: roleIn(match, playerId),
+    role,
     kind: match.kind,
     status: match.status,
     seed: match.seed,
@@ -60,4 +64,9 @@ export function toMatchView(match: Doc<'matches'>, playerId: string): MatchView 
     winner: match.winner,
     endReason: match.endReason,
   };
+  if (role === 'host' && match.code !== undefined) {
+    view.code = match.code;
+    view.expiresAt = match.expiresAt;
+  }
+  return view;
 }
