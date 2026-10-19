@@ -9,7 +9,7 @@ created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
 version: 0.5.0
-review_approved:     # set by `wi accept`
+review_approved: 2026-10-18
 pr:                  # set by `wi pr`
 tag:                 # set by `wi release`; the tag sits on the branch's last commit
 ---
@@ -100,3 +100,4 @@ The schema from `convex-backend-setup` defines `queue` and `matches`. `player-id
 - 2026-10-18 — Staging review: security HIGH (stale queue head blocked pairing) and MED (dead connecting match trapped players) fixed in f97d726; code review MEDs (stray heartbeat timer, pagehide state not reaching React) and LOWs (stuck matched, unlogged cancel failure, duplicate lookup) fixed. Open for the user: no rate limit on joinQueue (needs a dependency or a counter table).
 - 2026-10-18 — Test audit (second cycle): HIGH (non-connecting matches untested against the connect timeout) and a real bug (match arriving before join resolved leaked a heartbeat timer) fixed; untested paths covered; all 8 surviving mutants now killed. Remaining LOW: the 5-page sweep cap value is untested (cap of 1 is caught).
 - 2026-10-18 — Staged: verification passed; version 0.4.0 → 0.5.0; no changelog file.
+- 2026-10-18 — Review approved.
