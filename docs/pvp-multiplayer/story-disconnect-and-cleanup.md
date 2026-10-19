@@ -49,6 +49,7 @@ Matches have `status` and `endReason` (item 2), and Convex learns of round resul
 - **R6** — Every minute, `sweep` removes queue rows with no heartbeat for 60 seconds; marks `waiting` private matches past `expiresAt` as `abandoned`; marks `connecting` matches older than 60 seconds as `abandoned` (`endReason: 'connection'`); marks `playing` matches whose presence rows are all older than 60 seconds as `abandoned` (`endReason: 'timeout'`); deletes signals of matches not in `connecting`; and deletes `finished` and `abandoned` matches older than 24 hours with their presence rows.
 - **R7** — `sweep` handles at most 500 rows per table per run and finishes well within Convex's 1-second mutation limit ([Convex limits](https://docs.convex.dev/production/state/limits)); leftovers are handled next run.
 - **R8** — `leave`, `heartbeat` and `reportLost` reject outsiders and malformed GUIDs.
+- **R9** — While a private match is `waiting`, the host's client heartbeats every 10 seconds, so a host who closed the tab is detected before the 10-minute code expiry (moved here from private-match-codes R8).
 
 ## Acceptance criteria
 
