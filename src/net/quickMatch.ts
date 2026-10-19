@@ -1,4 +1,4 @@
-type QueueResult = { status: 'queued' | 'matched'; full: boolean };
+type QueueResult = { status: 'queued' | 'matched' | 'dropped'; full: boolean };
 
 export interface QuickMatchServer {
   join(): Promise<QueueResult>;
@@ -49,10 +49,23 @@ export class QuickMatch {
         .then((beat) => {
           if (search !== this.search) return;
           if (beat.status === 'matched') this.matched();
+          // The server lost this player's queue entry (it went stale): join again rather than wait in a line we left.
+          else if (beat.status === 'dropped') void this.rejoin(search);
           else this.set(beat.full ? 'full' : 'searching');
         })
         .catch((err) => console.error('Queue heartbeat failed', err));
     }, QUEUE_HEARTBEAT_MS);
+  }
+
+  private async rejoin(search: number): Promise<void> {
+    try {
+      const result = await this.server.join();
+      if (search !== this.search) return;
+      if (result.status === 'matched') this.matched();
+      else this.set(result.full ? 'full' : 'searching');
+    } catch (err) {
+      console.error('Rejoining the match queue failed', err);
+    }
   }
 
   matched(): void {

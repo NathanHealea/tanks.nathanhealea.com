@@ -269,7 +269,7 @@ describe('matchmaking', () => {
     expect(queue).toHaveLength(1);
     expect(queue[0]).toMatchObject({ playerId: a, joinedAt: 1_000_000, lastSeen: 1_020_000 });
 
-    expect(await t.mutation(api.matchmaking.queueHeartbeat, { playerId: b })).toEqual({ status: 'queued', full: false });
+    expect(await t.mutation(api.matchmaking.queueHeartbeat, { playerId: b })).toEqual({ status: 'dropped', full: false });
     const afterStranger = await t.run((ctx) => ctx.db.query('queue').collect());
     expect(afterStranger.map((row) => row.playerId)).toEqual([a]);
   });

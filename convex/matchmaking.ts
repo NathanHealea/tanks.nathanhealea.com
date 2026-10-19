@@ -1,7 +1,7 @@
 import { ConvexError, v } from 'convex/values';
 import type { Doc } from './_generated/dataModel';
 import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
-import { takeMatchSlot } from './lib/relayBudget';
+import { hasMatchSlot, takeMatchSlot } from './lib/relayBudget';
 import { requirePlayerId, toMatchView, type MatchView } from './lib/access';
 
 /** A queue entry with no heartbeat for this long is treated as a closed tab and never paired. */
@@ -15,7 +15,8 @@ const PAIRING_PAGES = 5;
 
 const ACTIVE: Doc<'matches'>['status'][] = ['waiting', 'connecting', 'playing'];
 
-type QueueResult = { status: 'queued' | 'matched'; full: boolean };
+/** 'dropped': the caller has no queue entry (it went stale), so the client must join again to be paired. */
+type QueueResult = { status: 'queued' | 'matched' | 'dropped'; full: boolean };
 
 /**
  * Pairs the caller with the oldest live waiting player, or queues them. Convex runs mutations as serializable
@@ -42,6 +43,12 @@ export const joinQueue = mutation({
  * match starts are used up (full), in which case the next heartbeat tries again.
  */
 async function pairFromQueue(ctx: MutationCtx, playerId: string, mine: Doc<'queue'> | null, now: number): Promise<QueueResult> {
+  // Checked before the queue scan: while the hour is full, heartbeats from everyone waiting would otherwise all read
+  // the queue head and conflict with each other's writes.
+  if (!(await hasMatchSlot(ctx, now))) {
+    if (!mine) await ctx.db.insert('queue', { playerId, joinedAt: now, lastSeen: now });
+    return { status: 'queued', full: true };
+  }
   let partner: Doc<'queue'> | undefined;
   for (let page = 0; page < PAIRING_PAGES && !partner; page++) {
     const head = await ctx.db.query('queue').withIndex('by_joined').take(PAIRING_SCAN);
@@ -113,7 +120,7 @@ export const queueHeartbeat = mutation({
     const now = Date.now();
     if (await activeMatchFor(ctx, playerId)) return { status: 'matched', full: false };
     const mine = await queueEntry(ctx, playerId);
-    if (!mine) return { status: 'queued', full: false };
+    if (!mine) return { status: 'dropped', full: false };
     await ctx.db.patch(mine._id, { lastSeen: now });
     return await pairFromQueue(ctx, playerId, mine, now);
   },

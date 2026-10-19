@@ -57,7 +57,7 @@ describe('match starts are capped per hour', () => {
 
     const c = crypto.randomUUID();
     const d = crypto.randomUUID();
-    expect(await t.mutation(api.matchmaking.joinQueue, { playerId: c })).toEqual({ status: 'queued', full: false });
+    expect(await t.mutation(api.matchmaking.joinQueue, { playerId: c })).toEqual({ status: 'queued', full: true });
     vi.advanceTimersByTime(1_000);
     expect(await t.mutation(api.matchmaking.joinQueue, { playerId: d })).toEqual({ status: 'queued', full: true });
 
@@ -80,7 +80,8 @@ describe('match starts are capped per hour', () => {
     const c = crypto.randomUUID();
     const d = crypto.randomUUID();
 
-    expect(await t.mutation(api.matchmaking.joinQueue, { playerId: c })).toEqual({ status: 'queued', full: false });
+    // A full hour is reported straight away, with or without a partner: the queue is not scanned while it lasts.
+    expect(await t.mutation(api.matchmaking.joinQueue, { playerId: c })).toEqual({ status: 'queued', full: true });
     expect(await t.mutation(api.matchmaking.joinQueue, { playerId: d })).toEqual({ status: 'queued', full: true });
     expect(await t.mutation(api.matchmaking.queueHeartbeat, { playerId: d })).toEqual({ status: 'queued', full: true });
     expect(await t.run((ctx) => ctx.db.query('matches').collect())).toEqual([]);
@@ -207,5 +208,24 @@ describe('match starts are capped per hour', () => {
     await t.mutation(internal.sweep.sweep, {});
 
     expect((await budget(t)).map((row) => row.hour)).toEqual([H - 2, H - 1, H]);
+  });
+
+  it('a heartbeat from a player no longer in the queue says so, rather than claiming to wait', async () => {
+    const t = convexTest(schema, modules);
+    const gone = crypto.randomUUID();
+    expect(await t.mutation(api.matchmaking.queueHeartbeat, { playerId: gone })).toEqual({ status: 'dropped', full: false });
+    expect(await t.run((ctx) => ctx.db.query('queue').collect())).toEqual([]);
+  });
+
+  it('a full hour does not sweep or pair the queue on a heartbeat', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(HOUR_START + 1_000);
+    const t = convexTest(schema, modules);
+    await seedBudget(t, H, 20);
+    const live = crypto.randomUUID();
+    await t.mutation(api.matchmaking.joinQueue, { playerId: live });
+    const staleRow = await t.run((ctx) => ctx.db.insert('queue', { playerId: crypto.randomUUID(), joinedAt: 0, lastSeen: 0 }));
+    expect(await t.mutation(api.matchmaking.queueHeartbeat, { playerId: live })).toEqual({ status: 'queued', full: true });
+    expect(await t.run((ctx) => ctx.db.get(staleRow))).not.toBeNull();
   });
 });

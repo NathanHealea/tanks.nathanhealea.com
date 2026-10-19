@@ -271,7 +271,7 @@ function fakeServerQueued() {
   };
 }
 
-type QueueResult = { status: 'queued' | 'matched'; full: boolean };
+type QueueResult = { status: 'queued' | 'matched' | 'dropped'; full: boolean };
 
 function fakeServerFull(join: QueueResult, heartbeats: QueueResult[] = []) {
   const heartbeat = vi.fn<() => Promise<QueueResult>>();
@@ -412,6 +412,18 @@ describe('a full hour keeps the search waiting', () => {
 
     expect(quick.state).toBe('full');
     expect(server.join).toHaveBeenCalledTimes(1);
+    quick.dispose();
+  });
+
+  it('a heartbeat saying the player was dropped from the queue joins again', async () => {
+    const server = fakeServerFull({ status: 'queued', full: true }, [{ status: 'dropped', full: false }, { status: 'queued', full: true }]);
+    const quick = new QuickMatch(server, () => {});
+    await quick.start();
+    expect(server.join).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(QUEUE_HEARTBEAT_MS);
+    expect(server.join).toHaveBeenCalledTimes(2);
+    expect(quick.state).toBe('full');
     quick.dispose();
   });
 });
