@@ -40,4 +40,9 @@ describe('codes', () => {
   it('formatCode splits the code in half with a dash', () => {
     expect(formatCode('HK7Q2M')).toBe('HK7-Q2M');
   });
+
+  it('the ends of the random range reach both ends of the alphabet', () => {
+    expect(generateCode(() => 0)).toBe('AAAAAA');
+    expect(generateCode(() => 0.999999)).toBe('999999');
+  });
 });

@@ -330,4 +330,92 @@ describe('privateMatch', () => {
       'CODE_NOT_FOUND',
     );
   });
+
+  it('a match joined just before its code expires keeps connecting after it', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const t = convexTest(schema, modules);
+    const host = crypto.randomUUID();
+    const guest = crypto.randomUUID();
+    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: host });
+    vi.setSystemTime(1_000_000 + 590_000);
+    await t.mutation(api.privateMatch.joinPrivate, { playerId: guest, code });
+    vi.setSystemTime(1_000_000 + 605_000);
+    expect(await t.query(api.matchmaking.myMatch, { playerId: host })).toMatchObject({ status: 'connecting' });
+    expect(await t.query(api.matchmaking.myMatch, { playerId: guest })).toMatchObject({ status: 'connecting' });
+  });
+
+  it('a code works up to and including its expiry instant', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const t = convexTest(schema, modules);
+    const host = crypto.randomUUID();
+    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: host });
+    vi.setSystemTime(1_000_000 + 600_000);
+    expect(await t.query(api.matchmaking.myMatch, { playerId: host })).not.toBeNull();
+    await expect(t.mutation(api.privateMatch.joinPrivate, { playerId: crypto.randomUUID(), code })).resolves.toBeDefined();
+  });
+
+  it('a code held by a match in play is full, and never handed out again', async () => {
+    const t = convexTest(schema, modules);
+    const taken = generateCode(() => 0);
+    await t.run((ctx) =>
+      ctx.db.insert('matches', {
+        kind: 'private', code: taken, expiresAt: 1, hostId: crypto.randomUUID(), guestId: crypto.randomUUID(),
+        status: 'playing', seed: 1, round: 2, hostScore: 1, guestScore: 0, createdAt: 1, hostSeen: 1, guestSeen: 1,
+      }),
+    );
+    await expectConvexErrorAsync(
+      t.mutation(api.privateMatch.joinPrivate, { playerId: crypto.randomUUID(), code: taken }),
+      'MATCH_FULL',
+    );
+    const real = Math.random;
+    let draws = 0;
+    vi.spyOn(Math, 'random').mockImplementation(() => (draws++ < 7 ? 0 : real()));
+    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: crypto.randomUUID() });
+    expect(code).not.toBe(taken);
+  });
+
+  it('a host whose friend has joined cannot replace the live match', async () => {
+    const t = convexTest(schema, modules);
+    const host = crypto.randomUUID();
+    const guest = crypto.randomUUID();
+    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: host });
+    const { matchId } = await t.mutation(api.privateMatch.joinPrivate, { playerId: guest, code });
+    await expectConvexErrorAsync(t.mutation(api.privateMatch.createPrivate, { playerId: host }), 'ALREADY_IN_MATCH');
+    expect(await t.run((ctx) => ctx.db.get(matchId))).toMatchObject({ status: 'connecting', guestId: guest });
+  });
+
+  it('the host entering their own full code hears OWN_CODE', async () => {
+    const t = convexTest(schema, modules);
+    const host = crypto.randomUUID();
+    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: host });
+    await t.mutation(api.privateMatch.joinPrivate, { playerId: crypto.randomUUID(), code });
+    await expectConvexErrorAsync(t.mutation(api.privateMatch.joinPrivate, { playerId: host, code }), 'OWN_CODE');
+  });
+
+  it('when every attempt collides, create fails and inserts nothing', async () => {
+    const t = convexTest(schema, modules);
+    await t.run((ctx) =>
+      ctx.db.insert('matches', {
+        kind: 'private', code: generateCode(() => 0), expiresAt: Date.now() + 600_000, hostId: crypto.randomUUID(),
+        status: 'waiting', seed: 1, round: 0, hostScore: 0, guestScore: 0, createdAt: 1, hostSeen: 1,
+      }),
+    );
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    await expectConvexErrorAsync(
+      t.mutation(api.privateMatch.createPrivate, { playerId: crypto.randomUUID() }),
+      'Could not find a free match code; try again',
+    );
+    expect(await t.run((ctx) => ctx.db.query('matches').collect())).toHaveLength(1);
+  });
+
+  it('the seed is an unsigned 32-bit integer even at the top of the random range', async () => {
+    const t = convexTest(schema, modules);
+    vi.spyOn(Math, 'random').mockReturnValue(0.9999999999);
+    await t.mutation(api.privateMatch.createPrivate, { playerId: crypto.randomUUID() });
+    const match = (await t.run((ctx) => ctx.db.query('matches').first()))!;
+    expect(match.seed).toBe(Math.floor(0.9999999999 * 2 ** 32));
+    expect(match.seed).toBeLessThan(2 ** 32);
+  });
 });
