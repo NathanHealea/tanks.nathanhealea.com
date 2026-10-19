@@ -190,7 +190,6 @@ export function OnlinePlay(props: Props) {
 
   function newCode() {
     lastCode.current = {};
-    expiredRef.current = false;
     setCodeExpired(false);
     void priv.create();
   }
@@ -255,18 +254,23 @@ export function OnlinePlay(props: Props) {
 
   // The waiting screen's own timer reaching zero is the usual signal: myMatch filters on the time, but a query only
   // re-runs when its data changes, so it can keep reporting a code that has expired.
-  const expiredRef = useRef(false);
-  const expire = useCallback(() => {
-    if (expiredRef.current) return;
-    expiredRef.current = true;
-    setCodeExpired(true);
-    announce('Your match code has expired.');
-  }, [announce]);
+  // Keyed to the expiry time it was raised for: after Make a new code, the old match is still reported until the new
+  // one lands, and its 0:00 must not expire the code on its way.
+  const expiredAt = useRef<number | null>(null);
+  const expire = useCallback(
+    (at: number) => {
+      if (expiredAt.current === at) return;
+      expiredAt.current = at;
+      setCodeExpired(true);
+      announce('Your match code has expired.');
+    },
+    [announce],
+  );
 
   useEffect(() => {
     if (screen.name !== 'privateWaiting' || priv.match) return;
     const { expiresAt } = lastCode.current;
-    if (expiresAt !== undefined && Date.now() > expiresAt) expire();
+    if (expiresAt !== undefined && Date.now() > expiresAt) expire(expiresAt);
   }, [screen.name, priv.match, expire]);
 
   useEffect(() => {
