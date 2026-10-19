@@ -73,9 +73,9 @@ Generate a new random arena for every PvP round from a seed. Arenas are 20×14 l
 
 ## Implementation plan
 
-1. [ ] Move `mulberry32` and `reachable` into a shared module with no output change — touches `src/game/levels.ts`, `src/game/layout.ts` — tests T9
-2. [ ] Add `generatePvpMap` with symmetric placement, spawn cover and the fairness check — touches `src/game/pvpMaps.ts`, `src/game/pvpMaps.test.ts` — tests T1, T2, T3, T4, T5, T6, T10
-3. [ ] Add the fallback arena and attempt cap, and `roundSeed` — touches `src/game/pvpMaps.ts`, `src/game/pvpMaps.test.ts` — tests T6, T7, T8
+1. [x] Move `mulberry32` and `reachable` into a shared module with no output change — touches `src/game/levels.ts`, `src/game/layout.ts` — tests T9
+2. [x] Add `generatePvpMap` with symmetric placement, spawn cover and the fairness check — touches `src/game/pvpMaps.ts`, `src/game/pvpMaps.test.ts` — tests T1, T2, T3, T4, T5, T6, T10
+3. [x] Add the fallback arena and attempt cap, and `roundSeed` — touches `src/game/pvpMaps.ts`, `src/game/pvpMaps.test.ts` — tests T6, T7, T8
 
 **Must not change:** `getLevel()` output for every campaign index; `parseLevel()` signature.
 
@@ -92,3 +92,4 @@ Generate a new random arena for every PvP round from a seed. Arenas are 20×14 l
 - 2026-10-18 — Planned.
 - 2026-10-18 — Plan approved.
 - 2026-10-18 — Started on branch story/pvp-map-generator from origin/pvp-tank.
+- 2026-10-18 — Steps 2 and 3 landed in one commit (same file). Fallback arena is generated from seed 20261018, not hand-drawn. Mutations: dropping mirroring, reachability, density or round variation fail tests; dropping the line-of-sight or cover check changes no output because the spawn-front wall guarantees both, so those checks are kept as a guard and the tests assert the properties directly.
