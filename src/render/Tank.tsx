@@ -61,7 +61,8 @@ export function Tank({ tank, effects, marked = false }: Props) {
       {marked && (
         <mesh position={[0, 0.02, 0]} rotation-x={-Math.PI / 2}>
           <ringGeometry args={[0.62, 0.74, 40]} />
-          <meshBasicMaterial color="#f6f1e7" />
+          {/* Dark, because tanks only drive on the light plank floor: about 7.8:1 there (WCAG 1.4.11). */}
+          <meshBasicMaterial color="#241f19" />
         </mesh>
       )}
       {[-0.3, 0.3].map((x) => (
