@@ -114,7 +114,8 @@ export default function App() {
   }, []);
 
   const onOutcome = useCallback(
-    (outcome: 'won' | 'lost') => {
+    (outcome: 'won' | 'lost' | 'draw') => {
+      if (outcome === 'draw') throw new Error('A campaign level cannot end in a draw');
       if (outcome === 'won') {
         setScreen(level + 1 >= LEVEL_COUNT ? 'victory' : 'cleared');
         return;

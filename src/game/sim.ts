@@ -68,6 +68,8 @@ export function createGame(levelIndex: number, playerIds: string[], seed: number
     tanks,
     bullets: [],
     mines: [],
+    mode: 'campaign',
+    winner: null,
     outcome: null,
     outcomeTime: 0,
   };

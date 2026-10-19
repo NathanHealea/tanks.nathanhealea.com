@@ -74,7 +74,10 @@ export interface GameState {
   tanks: TankState[];
   bullets: BulletState[];
   mines: MineState[];
-  outcome: 'won' | 'lost' | null;
+  mode: 'campaign' | 'pvp';
+  /** PvP only: the surviving tank's id, or null for a draw or while the round is on. */
+  winner: string | null;
+  outcome: 'won' | 'lost' | 'draw' | null;
   outcomeTime: number;
 }
 

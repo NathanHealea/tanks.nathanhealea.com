@@ -29,7 +29,7 @@ interface Props {
   effects: Effects;
   paused: boolean;
   onHud: (hud: HudSnapshot) => void;
-  onOutcome: (outcome: 'won' | 'lost') => void;
+  onOutcome: (outcome: NonNullable<GameState['outcome']>) => void;
   onBoardTop: (y: number) => void;
 }
 

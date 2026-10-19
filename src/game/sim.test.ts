@@ -161,6 +161,20 @@ describe('sim', () => {
     expect(count(events, 'wallBreak')).toBe(1);
   });
 
+  it('campaign games are untouched', () => {
+    const fresh = createGame(0, ['p1'], 1);
+    expect(fresh.mode).toBe('campaign');
+    expect(fresh.winner).toBeNull();
+
+    const { s, p1, enemy } = arena();
+    place(p1, -3, 0);
+    place(enemy, 3, 0);
+    run(s, 120, onFirstTick(p1.id, fireAt(Math.PI / 2)));
+    expect(s.outcome).toBe('won');
+    expect(s.mode).toBe('campaign');
+    expect(s.winner).toBeNull();
+  });
+
   it('mines need spacing and reload eight seconds after the last one', () => {
     const { s, p1, enemy } = arena();
     place(p1, -5, 0);
