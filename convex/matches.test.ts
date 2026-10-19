@@ -441,4 +441,21 @@ describe('matches', () => {
       endReason: 'connection',
     });
   });
+
+  it('matchOutcome reports the recorded result with scores, to members only', async () => {
+    const t = convexTest(schema, modules);
+    const { matchId, hostId, guestId } = await seedFinishedMatch(t);
+    expect(await t.query(api.matches.matchOutcome, { playerId: guestId, matchId })).toEqual({
+      status: 'finished',
+      winner: 'host',
+      endReason: 'score',
+      hostScore: 3,
+      guestScore: 2,
+    });
+    expect(await t.query(api.matches.matchOutcome, { playerId: hostId, matchId })).toMatchObject({ winner: 'host' });
+    await expectConvexErrorAsync(
+      t.query(api.matches.matchOutcome, { playerId: crypto.randomUUID(), matchId }),
+      'Not in this match',
+    );
+  });
 });

@@ -1,6 +1,6 @@
 import { ConvexError, v } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
-import { mutation, type QueryCtx } from './_generated/server';
+import { mutation, query, type QueryCtx } from './_generated/server';
 import { loadMatchAs, type Role } from './lib/access';
 import { activeMatchFor } from './matchmaking';
 
@@ -159,5 +159,17 @@ export const reportLost = mutation({
         : { status: 'abandoned', endReason: 'connection' };
     await ctx.db.patch(matchId, end);
     return outcomeOf({ ...match, ...end });
+  },
+});
+
+/**
+ * How a match ended, read once the server has taken it out of play. The client shows this rather than what the peer
+ * said: a peer's bye is not proof that it forfeited.
+ */
+export const matchOutcome = query({
+  args: { playerId: v.string(), matchId: v.id('matches') },
+  handler: async (ctx, { playerId, matchId }) => {
+    const { match } = await loadMatchAs(ctx, matchId, playerId);
+    return { ...outcomeOf(match), hostScore: match.hostScore, guestScore: match.guestScore };
   },
 });
