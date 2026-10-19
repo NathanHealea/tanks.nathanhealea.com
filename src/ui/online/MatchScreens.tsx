@@ -105,12 +105,13 @@ export function PvpHud(props: {
   them: number;
   localPlayerId: 'p1' | 'p2';
   muted: boolean;
+  inert: boolean;
   boardTop: number;
   onMenu(): void;
   onToggleMute(): void;
 }) {
   return (
-    <div className="hud">
+    <div className="hud" inert={props.inert}>
       <div className="hud-top" style={{ top: `max(env(safe-area-inset-top), ${props.boardTop - TOP_BAR_HEIGHT - TOP_BAR_GAP}px)` }}>
         <div className="panel">
           Round {props.round} · {scoreText(props.you, props.them)} · You are {colorName(props.localPlayerId)}

@@ -303,12 +303,28 @@ export function OnlinePlay(props: Props) {
 
   useEffect(() => {
     props.registerEscape(() => {
-      if (['countdown', 'playing', 'roundResult'].includes(screenRef.current.name)) setLeaveOpen((open) => !open);
+      if (['countdown', 'playing', 'roundResult'].includes(screenRef.current.name)) toggleLeave();
     });
     return () => props.registerEscape(null);
   }, []);
 
   useEffect(() => () => endConnection(), [endConnection]);
+
+  // aria-modal does not stop Tab, so the HUD behind Leave match? is made inert, and focus goes back where it was.
+  // The opener is taken before opening because Stay's autoFocus moves focus before any effect runs.
+  const leaveOpener = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (leaveOpen) return;
+    if (leaveOpener.current?.isConnected) leaveOpener.current.focus();
+    leaveOpener.current = null;
+  }, [leaveOpen]);
+
+  function toggleLeave() {
+    setLeaveOpen((open) => {
+      if (!open) leaveOpener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      return !open;
+    });
+  }
 
   const leave = () => {
     setLeaveOpen(false);
@@ -335,8 +351,9 @@ export function OnlinePlay(props: Props) {
           them={score.them}
           localPlayerId={localPlayer}
           muted={props.muted}
+          inert={leaveOpen}
           boardTop={props.boardTop}
-          onMenu={() => setLeaveOpen(true)}
+          onMenu={toggleLeave}
           onToggleMute={props.onToggleMute}
         />
       )}
