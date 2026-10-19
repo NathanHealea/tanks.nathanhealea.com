@@ -3,7 +3,7 @@ import type { JoinError } from '../../net/joinErrors';
 import { buildJoinUrl, formatCode, normalizeCode } from '../../net/share';
 import { joinErrorMessage, spokenCode } from './messages';
 
-/** R11's wording, true once quick matches are relay-only (turn-relay R6); keep it in step with the README. */
+/** R11's wording, true once quick matches are relay-only (turn-relay R6). The README's disclosure (pvp-deploy-docs R4) must say the same. */
 export const SHARING_NOTICE =
   "Private matches connect you straight to your friend, so each of you can see the other's IP address. Quick matches go through a relay, so strangers can't see it.";
 

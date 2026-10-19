@@ -1,7 +1,6 @@
 import { ConvexError } from 'convex/values';
 import type { JoinError } from '../../net/joinErrors';
-import type { PeerErrorCode } from '../../net/peer';
-import type { EndReason } from './flow';
+import type { ConnectFailReason, EndReason } from './flow';
 
 const JOIN_ERRORS: Record<JoinError, string> = {
   CODE_NOT_FOUND: 'No match with that code.',
@@ -35,8 +34,12 @@ export function roundResultText(outcome: 'won' | 'lost' | 'draw'): string {
 
 const UNREACHABLE = "Couldn't reach your opponent. Their network may block direct connections.";
 
-export function connectFailedMessage(reason: PeerErrorCode): string {
-  return reason === 'VERSION_MISMATCH' ? 'Your opponent is on a different version. Reload to update.' : UNREACHABLE;
+export function connectFailedMessage(reason: ConnectFailReason): string {
+  if (reason === 'VERSION_MISMATCH') return 'Your opponent is on a different version. Reload to update.';
+  if (reason === 'RELAY_UNAVAILABLE') {
+    return "Quick matches can't start right now. Try again soon, or play a private match with a friend.";
+  }
+  return UNREACHABLE;
 }
 
 export function colorName(playerId: 'p1' | 'p2'): string {

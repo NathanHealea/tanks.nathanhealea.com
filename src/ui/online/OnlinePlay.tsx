@@ -7,7 +7,7 @@ import type { PvpPlayer } from '../../game/types';
 import { playerId } from '../../net/identity';
 import type { Link } from '../../net/link';
 import { GuestMatch, HostMatch } from '../../net/netMatch';
-import { connectToOpponent } from '../../net/opponent';
+import { connectToOpponent, RelayUnavailableError } from '../../net/opponent';
 import { PeerError } from '../../net/peer';
 import { LinkWatch, type LinkHealth } from '../../net/silence';
 import { usePrivateMatch } from '../../net/usePrivateMatch';
@@ -144,7 +144,8 @@ export function OnlinePlay(props: Props) {
     pendingResult.current = null;
     const link = await connectToOpponent({ convex, matchId: match.id, playerId: me, role: match.role, kind: match.kind }).catch((err) => {
       console.error('Connecting to the opponent failed', err);
-      dispatch({ type: 'connectFailed', reason: err instanceof PeerError ? err.code : 'CONNECT_FAILED' });
+      const reason = err instanceof RelayUnavailableError ? 'RELAY_UNAVAILABLE' : err instanceof PeerError ? err.code : 'CONNECT_FAILED';
+      dispatch({ type: 'connectFailed', reason });
       return null;
     });
     if (!link || screenRef.current.name !== 'connecting') {

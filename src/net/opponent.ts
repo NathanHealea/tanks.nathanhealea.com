@@ -1,9 +1,9 @@
 import type { ConvexReactClient } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
-import { iceServersFromEnv, withTurn } from './iceServers';
+import { iceServersFromEnv, TURN_WAIT_MS, withTurn } from './iceServers';
 import type { Link } from './link';
-import { connectPeer, PeerError, type SignalTransport } from './peer';
+import { connectPeer, type SignalTransport } from './peer';
 
 type ConvexLike = Pick<ConvexReactClient, 'mutation' | 'watchQuery' | 'action'>;
 
@@ -24,6 +24,17 @@ export function convexSignals(convex: ConvexLike, matchId: Id<'matches'>, player
   };
 }
 
+/** A quick match could not get the relay it requires; distinct from PeerError, since the peer was never tried. */
+export class RelayUnavailableError extends Error {
+  constructor() {
+    super('RELAY_UNAVAILABLE');
+    this.name = 'RelayUnavailableError';
+  }
+}
+
+// Giving up on TURN means failing a quick match outright, not falling back, so it is given longer than a private one.
+const QUICK_TURN_WAIT_MS = 10_000;
+
 /**
  * Connects to the opponent in a matched game. The host then marks the match playing, which also deletes its signals
  * and the IP addresses in them; if that fails the link is closed so neither side plays an unrecorded match.
@@ -39,12 +50,16 @@ export async function connectToOpponent(options: {
 }): Promise<Link> {
   const { convex, matchId, playerId, role, kind } = options;
   const base = options.iceServers ?? iceServersFromEnv(import.meta.env.VITE_ICE_SERVERS);
-  const turn = await withTurn(base, () => convex.action(api.turn.turnCredentials, { playerId, matchId }));
+  const turn = await withTurn(
+    base,
+    () => convex.action(api.turn.turnCredentials, { playerId, matchId }),
+    kind === 'quick' ? QUICK_TURN_WAIT_MS : TURN_WAIT_MS,
+  );
   // A quick match is against a stranger: without a relay it does not connect at all, rather than reveal an address
   // (R6). Failing before the peer connection exists means no candidate is ever gathered or sent.
   if (kind === 'quick' && !turn.relay) {
     console.error('Quick match needs a TURN relay and none is available');
-    throw new PeerError('CONNECT_FAILED');
+    throw new RelayUnavailableError();
   }
   const link = await connectPeer({
     role,

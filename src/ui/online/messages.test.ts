@@ -64,4 +64,10 @@ describe('online messages', () => {
   it('a lost link counts down while waiting for the opponent', () => {
     expect(linkLostText(9)).toBe('Connection lost. Waiting for your opponent… 9');
   });
+
+  it('a quick match without a relay says so, and what to do instead', () => {
+    expect(connectFailedMessage('RELAY_UNAVAILABLE')).toBe(
+      "Quick matches can't start right now. Try again soon, or play a private match with a friend.",
+    );
+  });
 });

@@ -1,6 +1,9 @@
 import type { JoinError } from '../../net/joinErrors';
 import type { PeerErrorCode } from '../../net/peer';
 
+/** Why connecting failed: the peer connection's own codes, or a quick match with no relay to use. */
+export type ConnectFailReason = PeerErrorCode | 'RELAY_UNAVAILABLE';
+
 export type OnlineScreen =
   | { name: 'menu' }
   | { name: 'unavailable'; reason: 'no-backend' | 'offline' }
@@ -8,7 +11,7 @@ export type OnlineScreen =
   | { name: 'privateWaiting' }
   | { name: 'joining'; code: string; error: JoinError | null; busy: boolean }
   | { name: 'connecting' }
-  | { name: 'connectFailed'; reason: PeerErrorCode }
+  | { name: 'connectFailed'; reason: ConnectFailReason }
   | { name: 'countdown'; round: number }
   | { name: 'playing'; round: number }
   | { name: 'roundResult'; round: number; outcome: 'won' | 'lost' | 'draw'; you: number; them: number }
@@ -27,7 +30,7 @@ export type OnlineAction =
   | { type: 'cancel' }
   | { type: 'back' }
   | { type: 'matched' }
-  | { type: 'connectFailed'; reason: PeerErrorCode }
+  | { type: 'connectFailed'; reason: ConnectFailReason }
   | { type: 'roundStart'; round: number }
   | { type: 'countdownDone' }
   | { type: 'roundEnd'; round: number; outcome: 'won' | 'lost' | 'draw'; you: number; them: number }

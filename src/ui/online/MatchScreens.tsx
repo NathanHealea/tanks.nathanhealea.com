@@ -1,10 +1,9 @@
 import { TANK } from '../../game/config';
 import { TANK_STATS } from '../../game/tanks';
-import type { PeerErrorCode } from '../../net/peer';
 import type { HudSnapshot } from '../../render/Scene';
 import { Pips } from '../Hud';
 import { Card } from './OnlineScreens';
-import type { EndReason } from './flow';
+import type { ConnectFailReason, EndReason } from './flow';
 import { colorName, connectFailedMessage, endedText, linkLostText, matchResultText, roundResultText, scoreText } from './messages';
 
 const TOP_BAR_HEIGHT = 44;
@@ -21,7 +20,7 @@ export function Connecting({ onCancel }: { onCancel(): void }) {
   );
 }
 
-export function ConnectFailed({ reason, onBack }: { reason: PeerErrorCode; onBack(): void }) {
+export function ConnectFailed({ reason, onBack }: { reason: ConnectFailReason; onBack(): void }) {
   return (
     <Card title="Couldn't connect">
       <p>{connectFailedMessage(reason)}</p>

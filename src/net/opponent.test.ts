@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { getFunctionName, type FunctionReference } from 'convex/server';
 import type { Id } from '../../convex/_generated/dataModel';
 import { createFakeRtcPair, createSignalBus, type FakeSignalTransport } from './fakeRtc';
-import { connectToOpponent } from './opponent';
+import { connectToOpponent, RelayUnavailableError } from './opponent';
 import { PeerError } from './peer';
 
 const MATCH = 'match1' as Id<'matches'>;
@@ -125,8 +125,9 @@ describe('connectToOpponent', () => {
     for (const result of results) {
       expect(result.status).toBe('rejected');
       if (result.status === 'rejected') {
-        expect(result.reason).toBeInstanceOf(PeerError);
-        expect(result.reason).toMatchObject({ code: 'CONNECT_FAILED' });
+        // Its own error, not a PeerError: nothing was attempted with the peer, and the player is told why.
+        expect(result.reason).toBeInstanceOf(RelayUnavailableError);
+        expect(result.reason).not.toBeInstanceOf(PeerError);
       }
     }
     expect(host.turn).toHaveBeenCalledTimes(1);
