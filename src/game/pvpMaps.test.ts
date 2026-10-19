@@ -148,4 +148,12 @@ describe('pvp arena generator', () => {
       expect(() => createPvpGame(generatePvpMap(seed), seed), `seed ${seed}`).not.toThrow();
     }
   });
+
+  it('roundSeed rejects seeds that would lose their randomness', () => {
+    for (const bad of [0.37, Number.NaN, Number.POSITIVE_INFINITY, 2 ** 33, -(2 ** 31) - 1]) {
+      expect(() => roundSeed(bad, 1), String(bad)).toThrow('32-bit integer');
+    }
+    expect(() => roundSeed(2 ** 32 - 1, 1)).not.toThrow();
+    expect(() => roundSeed(-(2 ** 31), 1)).not.toThrow();
+  });
 });
