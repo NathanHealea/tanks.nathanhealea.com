@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_ICE_SERVERS, iceServersFromEnv } from './iceServers';
 
 describe('iceServersFromEnv', () => {
@@ -22,5 +22,11 @@ describe('iceServersFromEnv', () => {
     ]) {
       expect(iceServersFromEnv(raw), String(raw)).toEqual(DEFAULT_ICE_SERVERS);
     }
+  });
+
+  it.each(['[]', '[null]', '[{"urls":[1]}]'])('falls back to the default for %s', (raw) => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(iceServersFromEnv(raw)).toEqual(DEFAULT_ICE_SERVERS);
+    errors.mockRestore();
   });
 });

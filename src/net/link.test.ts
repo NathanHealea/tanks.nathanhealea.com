@@ -94,4 +94,24 @@ describe('createLinkPair', () => {
     expect(atA).toEqual([]);
     expect(atB).toEqual([]);
   });
+
+  it('the default drop rate never drops, even when random returns 0', async () => {
+    const [a, b] = createLinkPair({ random: () => 0 });
+    const got: string[] = [];
+    b.onMessage((_channel, message) => got.push(message));
+    a.send('state', 'x');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(got).toEqual(['x']);
+  });
+
+  it('a message still in flight when the link closes is not delivered', async () => {
+    vi.useFakeTimers();
+    const [a, b] = createLinkPair({ delayMs: 50 });
+    const got = vi.fn();
+    b.onMessage(got);
+    a.send('ctrl', 'late');
+    a.close();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(got).not.toHaveBeenCalled();
+  });
 });

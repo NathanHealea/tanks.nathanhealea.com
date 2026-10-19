@@ -200,4 +200,46 @@ describe('signaling', () => {
       'Match is not connecting',
     );
   });
+
+  it('the expiry clock starts at the first signal and touches only its own match', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const t = convexTest(schema, modules);
+    const { matchId, hostId, guestId } = await seedMatch(t);
+    const other = await seedMatch(t);
+    await t.mutation(api.signaling.sendSignal, { playerId: hostId, matchId, kind: 'offer', payload: '{}' });
+    vi.advanceTimersByTime(30_000);
+    await t.mutation(api.signaling.sendSignal, { playerId: guestId, matchId, kind: 'answer', payload: '{}' });
+    await t.mutation(api.signaling.sendSignal, { playerId: other.hostId, matchId: other.matchId, kind: 'offer', payload: '{}' });
+
+    vi.advanceTimersByTime(90_000);
+    await t.finishInProgressScheduledFunctions();
+    const left = await t.run((ctx) => ctx.db.query('signals').collect());
+    expect(left.map((s) => s.matchId)).toEqual([other.matchId]);
+  });
+
+  it('markConnected never revives a match that is over or timed out', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const t = convexTest(schema, modules);
+    const finished = await seedMatch(t, 'finished');
+    expect(await t.mutation(api.signaling.markConnected, { playerId: finished.hostId, matchId: finished.matchId })).toBeNull();
+    expect((await t.run((ctx) => ctx.db.get(finished.matchId)))?.status).toBe('finished');
+
+    const late = await seedMatch(t);
+    vi.setSystemTime(1_000_000 + 60_001);
+    await t.mutation(api.signaling.markConnected, { playerId: late.hostId, matchId: late.matchId });
+    expect((await t.run((ctx) => ctx.db.get(late.matchId)))?.status).toBe('connecting');
+  });
+
+  it('a payload of exactly 16 KB is accepted, and a send at exactly the timeout still counts', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const t = convexTest(schema, modules);
+    const { matchId, hostId } = await seedMatch(t);
+    await t.mutation(api.signaling.sendSignal, { playerId: hostId, matchId, kind: 'offer', payload: 'x'.repeat(16_384) });
+    vi.setSystemTime(1_000_000 + 60_000);
+    await t.mutation(api.signaling.sendSignal, { playerId: hostId, matchId, kind: 'ice', payload: '{}' });
+    expect(await t.run((ctx) => ctx.db.query('signals').collect())).toHaveLength(2);
+  });
 });

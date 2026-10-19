@@ -319,4 +319,85 @@ describe('connectPeer', () => {
     for (const link of links) link.close();
     errors.mockRestore();
   });
+
+  it('closing one link closes the connection and fires the other side onClose once', async () => {
+    vi.useFakeTimers();
+    const rtc = createFakeRtcPair();
+    const bus = createSignalBus();
+    const both = Promise.all([
+      connectPeer({ role: 'host', signals: bus.host, iceServers: ICE_SERVERS, createPeerConnection: rtc.createHost }),
+      connectPeer({ role: 'guest', signals: bus.guest, iceServers: ICE_SERVERS, createPeerConnection: rtc.createGuest }),
+    ]);
+    await vi.advanceTimersByTimeAsync(100);
+    const [hostLink, guestLink] = await both;
+    const hostClosed = vi.fn();
+    const guestClosed = vi.fn();
+    hostLink.onClose(hostClosed);
+    guestLink.onClose(guestClosed);
+
+    hostLink.close();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(rtc.host.closed).toBe(true);
+    expect(hostClosed).toHaveBeenCalledTimes(1);
+    expect(guestClosed).toHaveBeenCalledTimes(1);
+  });
+
+  it('every failure stops listening for signals', async () => {
+    vi.useFakeTimers();
+    const bus = createSignalBus();
+    const unsubscribe = vi.fn();
+    const recording = {
+      send: bus.host.send.bind(bus.host),
+      subscribe: (onInbox: (signals: Signal[]) => void) => {
+        const stop = bus.host.subscribe(onInbox);
+        return () => {
+          unsubscribe();
+          stop();
+        };
+      },
+    };
+    const attempt = settle(
+      connectPeer({ role: 'host', signals: recording, iceServers: ICE_SERVERS, createPeerConnection: createFakeRtcPair().createHost }),
+    );
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(attempt.error).toMatchObject({ code: 'CONNECT_TIMEOUT' });
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it('a refused offer fails at once, not after the timeout', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const bus = createSignalBus();
+    const refusing = { send: () => Promise.reject(new Error('Match is not connecting')), subscribe: bus.host.subscribe.bind(bus.host) };
+    const started = Date.now();
+    await expect(
+      connectPeer({ role: 'host', signals: refusing, iceServers: ICE_SERVERS, createPeerConnection: createFakeRtcPair().createHost }),
+    ).rejects.toMatchObject({ code: 'CONNECT_FAILED' });
+    expect(Date.now() - started).toBeLessThan(1_000);
+    errors.mockRestore();
+  });
+
+  it.each([
+    ['unparseable text', 'garbage', 'CONNECT_FAILED'],
+    ['a message without a type', JSON.stringify({ version: PROTOCOL_VERSION }), 'CONNECT_TIMEOUT'],
+  ])('a hello that is %s does not connect', async (_label, hello, code) => {
+    vi.useFakeTimers();
+    const rtc = createFakeRtcPair();
+    const bus = createSignalBus();
+    const host = settle(connectPeer({ role: 'host', signals: bus.host, iceServers: ICE_SERVERS, createPeerConnection: rtc.createHost }));
+    const guestPc = rtc.createGuest({ iceServers: ICE_SERVERS });
+    guestPc.ondatachannel = (event) => {
+      const channel = event.channel;
+      if (channel.label === 'ctrl') channel.onopen = () => channel.send(hello);
+    };
+    bus.guest.subscribe(async (inbox) => {
+      const offer = inbox.find((signal) => signal.kind === 'offer');
+      if (!offer || guestPc.remoteDescription) return;
+      await guestPc.setRemoteDescription(JSON.parse(offer.payload));
+      const answer = await guestPc.createAnswer();
+      await guestPc.setLocalDescription(answer);
+      await bus.guest.send('answer', JSON.stringify(answer));
+    });
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(host.error).toMatchObject({ code });
+  });
 });
