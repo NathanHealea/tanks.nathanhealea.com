@@ -77,6 +77,8 @@ Build the screens that make online play usable: a **Play online** entry on the t
 | T7 | R8 | `rematch after opponent left fails` | `convex/matches.test.ts` | Opponent has left → `requestRematch` throws `OPPONENT_LEFT` |
 | T8 | R10 | `campaign unaffected` | existing characterization tests | Item 1 tests pass |
 
+**Connectivity matrix (deferred here from webrtc-connection step 4, required before staging this item):** with the dev deployment, connect two browsers on one machine; a laptop on home Wi-Fi against a phone on cellular; and one side on a VPN or campus network. Record for each: connected or not, time to connect, and which ICE candidate types won (`chrome://webrtc-internals`). The results decide whether `turn-relay` must ship before launch.
+
 **Not unit testable:** R1 offline state, R3 copy and share, R6 HUD, R7 countdown visuals and all of R9. Verify manually and record results in the progress log:
 
 - Keyboard-only walk-through of AC7 in Chrome and Firefox.
