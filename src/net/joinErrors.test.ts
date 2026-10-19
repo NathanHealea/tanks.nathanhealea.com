@@ -10,6 +10,10 @@ describe('joinErrorOf', () => {
     },
   );
 
+  it('maps a ConvexError carrying BUSY to BUSY', () => {
+    expect(joinErrorOf(new ConvexError('BUSY'))).toBe('BUSY');
+  });
+
   it('maps an unrelated ConvexError to UNKNOWN', () => {
     expect(joinErrorOf(new ConvexError('Invalid player id'))).toBe('UNKNOWN');
   });

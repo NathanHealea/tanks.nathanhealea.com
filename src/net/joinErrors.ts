@@ -1,6 +1,6 @@
 import { ConvexError } from 'convex/values';
 
-const KNOWN = ['CODE_NOT_FOUND', 'CODE_EXPIRED', 'MATCH_FULL', 'OWN_CODE', 'ALREADY_IN_MATCH'] as const;
+const KNOWN = ['CODE_NOT_FOUND', 'CODE_EXPIRED', 'MATCH_FULL', 'OWN_CODE', 'ALREADY_IN_MATCH', 'BUSY'] as const;
 
 export type JoinError = (typeof KNOWN)[number] | 'UNKNOWN';
 

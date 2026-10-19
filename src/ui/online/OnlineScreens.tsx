@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import type { JoinError } from '../../net/joinErrors';
 import { buildJoinUrl, formatCode, normalizeCode } from '../../net/share';
-import { joinErrorMessage, spokenCode } from './messages';
+import { IN_LINE, joinErrorMessage, spokenCode } from './messages';
 
 /** Every match is relay-only (turn-relay R6). The README's disclosure (pvp-deploy-docs R4) must say the same. */
 export const SHARING_NOTICE = "Matches go through a relay, so other players can't see your IP address.";
@@ -54,11 +54,13 @@ export function Unavailable({ reason, onBack }: { reason: 'no-backend' | 'offlin
   );
 }
 
-export function Searching({ failed, onCancel }: { failed: boolean; onCancel(): void }) {
+export function Searching({ failed, full, onCancel }: { failed: boolean; full: boolean; onCancel(): void }) {
   return (
     <Card title="Looking for an opponent">
       {failed ? (
         <p className="error-text">{SEARCH_FAILED}</p>
+      ) : full ? (
+        <p>{IN_LINE}</p>
       ) : (
         <p>You'll be matched with the next player who searches.</p>
       )}

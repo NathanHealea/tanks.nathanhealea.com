@@ -3,8 +3,8 @@ import { QUEUE_HEARTBEAT_MS, QuickMatch, type QuickMatchState } from './quickMat
 
 function fakeServer(joinStatus: 'queued' | 'matched' = 'queued') {
   return {
-    join: vi.fn(() => Promise.resolve({ status: joinStatus })),
-    heartbeat: vi.fn(() => Promise.resolve(null)),
+    join: vi.fn(() => Promise.resolve({ status: joinStatus, full: false })),
+    heartbeat: vi.fn(() => Promise.resolve({ status: 'queued' as const, full: false })),
     leave: vi.fn(() => Promise.resolve(null)),
   };
 }
@@ -133,20 +133,20 @@ describe('QuickMatch', () => {
 
   it('a join that resolves after cancel and a new search starts only one heartbeat', async () => {
     vi.useFakeTimers();
-    let resolveFirst!: (v: { status: 'queued' }) => void;
+    let resolveFirst!: (v: { status: 'queued'; full: false }) => void;
     const server = {
       join: vi
         .fn()
         .mockImplementationOnce(() => new Promise((r) => (resolveFirst = r)))
-        .mockResolvedValue({ status: 'queued' }),
-      heartbeat: vi.fn().mockResolvedValue(null),
+        .mockResolvedValue({ status: 'queued', full: false }),
+      heartbeat: vi.fn().mockResolvedValue({ status: 'queued' as const, full: false }),
       leave: vi.fn().mockResolvedValue(null),
     };
     const quick = new QuickMatch(server, () => {});
     const first = quick.start();
     await quick.cancel();
     await quick.start();
-    resolveFirst({ status: 'queued' });
+    resolveFirst({ status: 'queued', full: false });
     await first;
 
     await vi.advanceTimersByTimeAsync(10_000);
@@ -194,12 +194,12 @@ describe('QuickMatch edge cases', () => {
 
   it('a match that arrives before join resolves starts no heartbeats', async () => {
     vi.useFakeTimers();
-    let resolveJoin!: (v: { status: 'queued' }) => void;
-    const server = { ...fakeServerQueued(), join: vi.fn(() => new Promise<{ status: 'queued' }>((r) => (resolveJoin = r))) };
+    let resolveJoin!: (v: { status: 'queued'; full: false }) => void;
+    const server = { ...fakeServerQueued(), join: vi.fn(() => new Promise<{ status: 'queued'; full: false }>((r) => (resolveJoin = r))) };
     const quick = new QuickMatch(server, () => {});
     const started = quick.start();
     quick.matched();
-    resolveJoin({ status: 'queued' });
+    resolveJoin({ status: 'queued', full: false });
     await started;
     await vi.advanceTimersByTimeAsync(30_000);
     expect(server.heartbeat).not.toHaveBeenCalled();
@@ -228,7 +228,7 @@ describe('QuickMatch edge cases', () => {
     const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
     const server = {
       ...fakeServerQueued(),
-      join: vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue({ status: 'queued' }),
+      join: vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue({ status: 'queued', full: false }),
     };
     const quick = new QuickMatch(server, () => {});
     await quick.start();
@@ -248,7 +248,7 @@ describe('QuickMatch edge cases', () => {
       join: vi
         .fn()
         .mockImplementationOnce(() => new Promise((_, reject) => (rejectFirst = reject)))
-        .mockResolvedValue({ status: 'queued' }),
+        .mockResolvedValue({ status: 'queued', full: false }),
     };
     const quick = new QuickMatch(server, () => {});
     const first = quick.start();
@@ -265,8 +265,153 @@ describe('QuickMatch edge cases', () => {
 
 function fakeServerQueued() {
   return {
-    join: vi.fn().mockResolvedValue({ status: 'queued' as const }),
-    heartbeat: vi.fn().mockResolvedValue(null),
+    join: vi.fn().mockResolvedValue({ status: 'queued' as const, full: false }),
+    heartbeat: vi.fn().mockResolvedValue({ status: 'queued' as const, full: false }),
     leave: vi.fn().mockResolvedValue(null),
   };
 }
+
+type QueueResult = { status: 'queued' | 'matched'; full: boolean };
+
+function fakeServerFull(join: QueueResult, heartbeats: QueueResult[] = []) {
+  const heartbeat = vi.fn<() => Promise<QueueResult>>();
+  for (const result of heartbeats) heartbeat.mockResolvedValueOnce(result);
+  heartbeat.mockResolvedValue(heartbeats.at(-1) ?? join);
+  return {
+    join: vi.fn<() => Promise<QueueResult>>().mockResolvedValue(join),
+    heartbeat,
+    leave: vi.fn().mockResolvedValue(null),
+  };
+}
+
+describe('a full hour keeps the search waiting', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('a join reporting full shows full and keeps heartbeating until a heartbeat is not full', async () => {
+    const server = fakeServerFull({ status: 'queued', full: true }, [
+      { status: 'queued', full: true },
+      { status: 'queued', full: false },
+    ]);
+    const states: QuickMatchState[] = [];
+    const quick = new QuickMatch(server, (s) => states.push(s));
+
+    await quick.start();
+    expect(quick.state).toBe('full');
+
+    await vi.advanceTimersByTimeAsync(QUEUE_HEARTBEAT_MS);
+    expect(server.heartbeat).toHaveBeenCalledTimes(1);
+    expect(quick.state).toBe('full');
+
+    await vi.advanceTimersByTimeAsync(QUEUE_HEARTBEAT_MS);
+    expect(server.heartbeat).toHaveBeenCalledTimes(2);
+    expect(quick.state).toBe('searching');
+    expect(states).toEqual(['searching', 'full', 'searching']);
+    quick.dispose();
+  });
+
+  it('a heartbeat reporting full while searching shows full', async () => {
+    const server = fakeServerFull({ status: 'queued', full: false }, [{ status: 'queued', full: true }]);
+    const states: QuickMatchState[] = [];
+    const quick = new QuickMatch(server, (s) => states.push(s));
+
+    await quick.start();
+    expect(quick.state).toBe('searching');
+    await vi.advanceTimersByTimeAsync(QUEUE_HEARTBEAT_MS);
+
+    expect(quick.state).toBe('full');
+    expect(states).toEqual(['searching', 'full']);
+    quick.dispose();
+  });
+
+  it('a heartbeat that pairs a full search goes to matched and stops heartbeating', async () => {
+    const server = fakeServerFull({ status: 'queued', full: true }, [{ status: 'matched', full: false }]);
+    const states: QuickMatchState[] = [];
+    const quick = new QuickMatch(server, (s) => states.push(s));
+
+    await quick.start();
+    await vi.advanceTimersByTimeAsync(QUEUE_HEARTBEAT_MS);
+    expect(quick.state).toBe('matched');
+    await vi.advanceTimersByTimeAsync(3 * QUEUE_HEARTBEAT_MS);
+
+    expect(server.heartbeat).toHaveBeenCalledTimes(1);
+    expect(states).toEqual(['searching', 'full', 'matched']);
+    expect(server.leave).not.toHaveBeenCalled();
+  });
+
+  it('a heartbeat that pairs a searching player goes to matched and stops heartbeating', async () => {
+    const server = fakeServerFull({ status: 'queued', full: false }, [{ status: 'matched', full: false }]);
+    const states: QuickMatchState[] = [];
+    const quick = new QuickMatch(server, (s) => states.push(s));
+
+    await quick.start();
+    await vi.advanceTimersByTimeAsync(QUEUE_HEARTBEAT_MS);
+    expect(quick.state).toBe('matched');
+    await vi.advanceTimersByTimeAsync(3 * QUEUE_HEARTBEAT_MS);
+
+    expect(server.heartbeat).toHaveBeenCalledTimes(1);
+    expect(states).toEqual(['searching', 'matched']);
+  });
+
+  it('a match arriving while full goes to matched and stops heartbeating', async () => {
+    const server = fakeServerFull({ status: 'queued', full: true });
+    const states: QuickMatchState[] = [];
+    const quick = new QuickMatch(server, (s) => states.push(s));
+
+    await quick.start();
+    quick.matched();
+    await vi.advanceTimersByTimeAsync(3 * QUEUE_HEARTBEAT_MS);
+
+    expect(quick.state).toBe('matched');
+    expect(states).toEqual(['searching', 'full', 'matched']);
+    expect(server.heartbeat).not.toHaveBeenCalled();
+    expect(server.leave).not.toHaveBeenCalled();
+  });
+
+  it('cancel while full leaves the queue and stops heartbeating', async () => {
+    const server = fakeServerFull({ status: 'queued', full: true });
+    const states: QuickMatchState[] = [];
+    const quick = new QuickMatch(server, (s) => states.push(s));
+
+    await quick.start();
+    await quick.cancel();
+    await vi.advanceTimersByTimeAsync(3 * QUEUE_HEARTBEAT_MS);
+
+    expect(quick.state).toBe('idle');
+    expect(states).toEqual(['searching', 'full', 'idle']);
+    expect(server.leave).toHaveBeenCalledTimes(1);
+    expect(server.heartbeat).not.toHaveBeenCalled();
+  });
+
+  it('dispose while full leaves the queue once and stops heartbeating', async () => {
+    const server = fakeServerFull({ status: 'queued', full: true });
+    const quick = new QuickMatch(server, () => {});
+
+    await quick.start();
+    expect(quick.state).toBe('full');
+    quick.dispose();
+    quick.dispose();
+    await vi.advanceTimersByTimeAsync(3 * QUEUE_HEARTBEAT_MS);
+
+    expect(quick.state).toBe('idle');
+    expect(server.leave).toHaveBeenCalledTimes(1);
+    expect(server.heartbeat).not.toHaveBeenCalled();
+  });
+
+  it('start while full does not join again', async () => {
+    const server = fakeServerFull({ status: 'queued', full: true });
+    const quick = new QuickMatch(server, () => {});
+
+    await quick.start();
+    await quick.start();
+
+    expect(quick.state).toBe('full');
+    expect(server.join).toHaveBeenCalledTimes(1);
+    quick.dispose();
+  });
+});

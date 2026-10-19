@@ -2,6 +2,7 @@ import { ConvexError } from 'convex/values';
 import { describe, expect, it } from 'vitest';
 import { formatCode } from '../../net/share';
 import {
+  IN_LINE,
   colorName,
   connectFailedMessage,
   endedText,
@@ -67,5 +68,11 @@ describe('online messages', () => {
 
   it('a match without a relay says so, and what to do instead', () => {
     expect(connectFailedMessage('RELAY_UNAVAILABLE')).toBe("Online matches can't start right now. Try again in a few minutes.");
+  });
+
+  it('a full hour tells players they are in line', () => {
+    expect(joinErrorMessage('BUSY')).toBe("Lots of players right now, so you're in line. We'll keep trying.");
+    expect(rematchErrorMessage(new ConvexError('BUSY'))).toBe('Lots of players right now. Try the rematch again in a few minutes.');
+    expect(IN_LINE).toBe("Lots of players right now, so you're in line. Your match will start when a spot opens.");
   });
 });

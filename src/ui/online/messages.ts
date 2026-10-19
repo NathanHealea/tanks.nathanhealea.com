@@ -8,6 +8,7 @@ const JOIN_ERRORS: Record<JoinError, string> = {
   MATCH_FULL: 'That match is already full.',
   OWN_CODE: 'This is your own match code. Send the link to a friend.',
   ALREADY_IN_MATCH: "You're already in a match.",
+  BUSY: "Lots of players right now, so you're in line. We'll keep trying.",
   UNKNOWN: 'Something went wrong joining that match. Try again.',
 };
 
@@ -50,6 +51,7 @@ export function rematchErrorMessage(err: unknown): string {
   const reason = err instanceof ConvexError ? err.data : null;
   if (reason === 'OPPONENT_LEFT') return 'Your opponent has left, so a rematch is not possible.';
   if (reason === 'ALREADY_IN_MATCH') return "You're already in a match.";
+  if (reason === 'BUSY') return 'Lots of players right now. Try the rematch again in a few minutes.';
   return "Couldn't ask for a rematch. Try again.";
 }
 
@@ -67,3 +69,6 @@ export function endedText(reason: EndReason): string {
 export function linkLostText(secondsLeft: number): string {
   return `Connection lost. Waiting for your opponent… ${secondsLeft}`;
 }
+
+/** Shown while a quick-match search waits for the hour's match starts to free up (turn-relay R7). */
+export const IN_LINE = "Lots of players right now, so you're in line. Your match will start when a spot opens.";

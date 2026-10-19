@@ -17,7 +17,7 @@ import type { HudSnapshot } from '../../render/Scene';
 import { TouchControls } from '../TouchControls';
 import { initialScreen, outcomeAction, reduce, type OnlineAction, type OnlineEffect, type OnlineScreen } from './flow';
 import { Connecting, ConnectFailed, Countdown, Ended, LeaveConfirm, LinkLostBanner, MatchResult, PvpHud } from './MatchScreens';
-import { endedText, linkLostText, rematchErrorMessage, roundResultText, scoreText } from './messages';
+import { endedText, IN_LINE, linkLostText, rematchErrorMessage, roundResultText, scoreText } from './messages';
 import { JoinWithCode, OnlineMenu, PrivateWaiting, SEARCH_FAILED, Searching, Unavailable } from './OnlineScreens';
 
 const isTouch = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
@@ -41,6 +41,8 @@ const WAITING_BEAT_MS = 10_000;
 // reportLost is usually called by the player whose network failed, and Convex queues mutations while offline, so the
 // answer may never come; after this long the match is shown as having no result.
 const REPORT_WAIT_MS = 5000;
+// How often a player in line for a full hour tries joining a private code again (turn-relay R7).
+const BUSY_RETRY_MS = 15_000;
 const LIVE_SCREENS = ['privateWaiting', 'connecting', 'countdown', 'playing', 'roundResult'];
 
 /**
@@ -369,12 +371,24 @@ export function OnlinePlay(props: Props) {
     if (priv.joinError && screen.name === 'joining' && screen.busy) dispatch({ type: 'joinFailed', error: priv.joinError });
   }, [priv.joinError, screen, dispatch]);
 
+  // A full hour keeps a joining player in line: the join is retried quietly, without going busy and re-announcing
+  // each attempt, and a slot that opens moves them on through myMatch like any other join.
+  const joinRef = useRef(priv.join);
+  joinRef.current = priv.join;
+  const busyCode = screen.name === 'joining' && screen.error === 'BUSY' ? screen.code : null;
+  useEffect(() => {
+    if (!busyCode) return;
+    const timer = setInterval(() => void joinRef.current(busyCode), BUSY_RETRY_MS);
+    return () => clearInterval(timer);
+  }, [busyCode]);
+
   useEffect(() => {
     if (priv.createError) showError(priv.createError === 'ALREADY_IN_MATCH' ? "You're already in a match." : 'Making a code failed. Try again.');
   }, [priv.createError, showError]);
 
   useEffect(() => {
     if (quick.state === 'error' && screen.name === 'searching') announce(SEARCH_FAILED);
+    if (quick.state === 'full' && screen.name === 'searching') announce(IN_LINE);
   }, [quick.state, screen.name, announce]);
 
   // The countdown is read from the session; when it ends, play starts on both screens.
@@ -515,7 +529,9 @@ export function OnlinePlay(props: Props) {
         />
       )}
       {screen.name === 'unavailable' && <Unavailable reason={screen.reason} onBack={back} />}
-      {screen.name === 'searching' && <Searching failed={quick.state === 'error'} onCancel={() => dispatch({ type: 'cancel' })} />}
+      {screen.name === 'searching' && (
+        <Searching failed={quick.state === 'error'} full={quick.state === 'full'} onCancel={() => dispatch({ type: 'cancel' })} />
+      )}
       {screen.name === 'privateWaiting' && (
         <PrivateWaiting
           code={priv.match?.code ?? (codeExpired ? lastCode.current.code : undefined)}

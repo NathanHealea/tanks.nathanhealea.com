@@ -1,10 +1,13 @@
+type QueueResult = { status: 'queued' | 'matched'; full: boolean };
+
 export interface QuickMatchServer {
-  join(): Promise<{ status: 'queued' | 'matched' }>;
-  heartbeat(): Promise<null>;
+  join(): Promise<QueueResult>;
+  heartbeat(): Promise<QueueResult>;
   leave(): Promise<null>;
 }
 
-export type QuickMatchState = 'idle' | 'searching' | 'matched' | 'error';
+/** 'full': queued, but the hour's match starts are used up; heartbeats keep trying until a slot opens. */
+export type QuickMatchState = 'idle' | 'searching' | 'full' | 'matched' | 'error';
 
 /** A third of the server's 30 s staleness window, so one dropped heartbeat never makes a live player look gone. */
 export const QUEUE_HEARTBEAT_MS = 10_000;
@@ -22,10 +25,10 @@ export class QuickMatch {
   ) {}
 
   async start(): Promise<void> {
-    if (this.state === 'searching' || this.state === 'matched') return;
+    if (this.state === 'searching' || this.state === 'full' || this.state === 'matched') return;
     const search = ++this.search;
     this.set('searching');
-    let result: { status: 'queued' | 'matched' };
+    let result: QueueResult;
     try {
       result = await this.server.join();
     } catch (err) {
@@ -38,9 +41,17 @@ export class QuickMatch {
       this.set('matched');
       return;
     }
+    this.set(result.full ? 'full' : 'searching');
     this.stopHeartbeats();
     this.timer = setInterval(() => {
-      this.server.heartbeat().catch((err) => console.error('Queue heartbeat failed', err));
+      this.server
+        .heartbeat()
+        .then((beat) => {
+          if (search !== this.search) return;
+          if (beat.status === 'matched') this.matched();
+          else this.set(beat.full ? 'full' : 'searching');
+        })
+        .catch((err) => console.error('Queue heartbeat failed', err));
     }, QUEUE_HEARTBEAT_MS);
   }
 
@@ -66,7 +77,7 @@ export class QuickMatch {
   }
 
   private async stop(): Promise<void> {
-    if (this.state !== 'searching') return;
+    if (this.state !== 'searching' && this.state !== 'full') return;
     this.search++;
     this.stopHeartbeats();
     this.set('idle');
@@ -80,6 +91,7 @@ export class QuickMatch {
   }
 
   private set(state: QuickMatchState): void {
+    if (state === this.state) return;
     this.state = state;
     this.onChange(state);
   }
