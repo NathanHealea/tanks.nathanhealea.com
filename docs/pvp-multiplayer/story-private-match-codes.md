@@ -46,7 +46,7 @@ Same backend pieces as `random-matchmaking`: the `matches` table with its `by_co
 - **R5** — `cancelPrivate` lets the host cancel a waiting match; afterwards its code returns `CODE_NOT_FOUND`.
 - **R6** — `buildJoinUrl(code)` returns `<origin>/?join=<CODE>`; on load, `readJoinParam()` reads a valid code from the URL and removes the parameter with `history.replaceState`, so a reload does not try to join again.
 - **R7** — Codes are only exposed to their creator (the view returned to the host); `myMatch` for the guest does not include the code.
-- **R8** — While waiting, the host's client heartbeats every 10 seconds.
+- ~~**R8** — While waiting, the host's client heartbeats every 10 seconds.~~ Moved to `disconnect-and-cleanup` (R9 there): no match heartbeat mutation exists until that item adds presence, and a waiting code already expires after 10 minutes.
 
 ## Acceptance criteria
 
@@ -71,16 +71,17 @@ Same backend pieces as `random-matchmaking`: the `matches` table with its `by_co
 | T8 | R3 | `normalizeCode and formatCode` | `src/net/share.test.ts` | `' hk7-q2m '` → `'HK7Q2M'`; invalid characters → `null`; `formatCode('HK7Q2M')` → `'HK7-Q2M'` |
 | T9 | R6 | `join url round-trips` | `src/net/share.test.ts` | `buildJoinUrl` output parsed by `readJoinParam` returns the code and calls `replaceState` without `join` |
 | T10 | R6 | `invalid join param is ignored` | `src/net/share.test.ts` | `?join=<script>` returns `null` and leaves history alone |
-| T11 | R8 | `waiting host heartbeats` | `src/net/usePrivateMatch.test.ts` | Fake timers: heartbeat every 10 s while `waiting`, stops on `connecting` or cancel |
+| ~~T11~~ | R8 | moved to disconnect-and-cleanup | — | — |
+| T12 | R4 | `joinErrorOf` maps each refusal | `src/net/joinErrors.test.ts` | Each of the five ConvexError codes maps to itself; any other ConvexError, plain Error or value is `UNKNOWN` |
 
 **Not unit testable:** None.
 
 ## Implementation plan
 
-1. [ ] Add `createPrivate` and `cancelPrivate` with code generation and uniqueness — touches `convex/privateMatch.ts`, `convex/lib/codes.ts`, `convex/privateMatch.test.ts` — tests T1, T2, T3, T6
-2. [ ] Add `joinPrivate` with normalization and the five error cases, and the code-aware match view — touches `convex/privateMatch.ts`, `convex/lib/access.ts`, `convex/privateMatch.test.ts` — tests T4, T5, T7
-3. [ ] Add the share-link helpers — touches `src/net/share.ts`, `src/net/share.test.ts` — tests T8, T9, T10
-4. [ ] Add the `usePrivateMatch` hook — touches `src/net/usePrivateMatch.ts`, `src/net/usePrivateMatch.test.ts` — tests T11
+1. [x] Add `createPrivate` and `cancelPrivate` with code generation and uniqueness — touches `convex/privateMatch.ts`, `convex/lib/codes.ts`, `convex/privateMatch.test.ts` — tests T1, T2, T3, T6
+2. [x] Add `joinPrivate` with normalization and the five error cases, and the code-aware match view — touches `convex/privateMatch.ts`, `convex/lib/access.ts`, `convex/privateMatch.test.ts` — tests T4, T5, T7
+3. [x] Add the share-link helpers — touches `src/net/share.ts`, `src/net/share.test.ts` — tests T8, T9, T10
+4. [x] Add the `usePrivateMatch` hook and join-error mapping — touches `src/net/usePrivateMatch.ts`, `src/net/joinErrors.ts`, `src/net/joinErrors.test.ts` — tests T12
 
 **Must not change:** `toMatchView`'s guarantee of no GUIDs (extended here only to carry `code` for the host).
 
@@ -97,3 +98,5 @@ Same backend pieces as `random-matchmaking`: the `matches` table with its `by_co
 - 2026-10-18 — Planned.
 - 2026-10-18 — Plan approved.
 - 2026-10-18 — Started on branch story/private-match-codes from origin/pvp-tank.
+- 2026-10-18 — Steps 1 and 2 share convex/privateMatch.ts, so they landed together after the codes module. Added tests beyond the plan: expired code frees the host, ALREADY_IN_MATCH on create, queue entry removed on create and join, guest cannot cancel, malformed ids rejected by all three functions (a mutation showed joinPrivate validation was otherwise untested).
+- 2026-10-18 — Step 4: R8/T11 (waiting host heartbeat) moved to disconnect-and-cleanup R9, since no match heartbeat mutation exists before that item. Step 4 became the hook plus a tested joinErrorOf mapping (T12); the hook itself is a thin untested wrapper.
