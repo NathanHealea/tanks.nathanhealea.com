@@ -2,7 +2,7 @@
 type: story
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: webrtc-connection
-status: staged
+status: released
 branch: story/webrtc-connection
 worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/story-webrtc-connection
 created: 2026-10-18
@@ -11,7 +11,7 @@ commit_type:         # optional override for the release subject type (default: 
 version: 0.7.0
 review_approved: 2026-10-18
 pr:                  # set by `wi pr`
-tag:                 # set by `wi release`; the tag sits on the branch's last commit
+tag: v0.7.0
 ---
 
 # Peer-to-peer connection over Convex signaling
@@ -103,3 +103,4 @@ WebRTC needs the two peers to exchange an SDP offer and answer (descriptions of 
 - 2026-10-18 — Test audit (second cycle): HIGH wiring gap fixed (convexSignals + connectToOpponent; host calls markConnected); markConnected now uses the connecting window; 13 surviving mutants re-run and killed. Remaining LOW: unknown channel labels, ICE 'closed' in wrap, send on a non-open channel untested.
 - 2026-10-18 — Staged: verification passed; version 0.6.0 → 0.7.0; no changelog file.
 - 2026-10-18 — Review approved.
+- 2026-10-18 — Released 0.7.0 as v0.7.0.
