@@ -64,3 +64,28 @@ describe('playerId', () => {
     expect(cookieWrites).not.toHaveBeenCalled();
   });
 });
+
+describe('playerId outside a secure context', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('works where crypto.randomUUID does not exist', async () => {
+    vi.stubGlobal('crypto', { getRandomValues: globalThis.crypto.getRandomValues.bind(globalThis.crypto) });
+    vi.resetModules();
+    const { playerId } = await import('./identity');
+
+    expect(playerId()).toMatch(V4_UUID);
+  });
+
+  it('many ids are all valid and distinct', async () => {
+    const ids = new Set<string>();
+    for (let i = 0; i < 200; i++) {
+      vi.resetModules();
+      const { playerId } = await import('./identity');
+      expect(playerId()).toMatch(V4_UUID);
+      ids.add(playerId());
+    }
+    expect(ids.size).toBe(200);
+  });
+});
