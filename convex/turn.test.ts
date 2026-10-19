@@ -223,6 +223,11 @@ describe('turn', () => {
       ['only servers off Cloudflare', json({ iceServers: [{ urls: ['turn:relay.example.test:3478'], username: 'u', credential: 'c' }] }, 201)],
       ['STUN only, no relay login', json({ iceServers: [{ urls: ['stun:stun.cloudflare.com:3478'] }] }, 201)],
       ['TURN without a credential', json({ iceServers: [{ urls: ['turn:turn.cloudflare.com:3478?transport=udp'] }] }, 201)],
+      ['TURN with a username but no credential', json({ iceServers: [{ urls: ['turn:turn.cloudflare.com:3478'], username: 'u' }] }, 201)],
+      ['TURN with a credential but no username', json({ iceServers: [{ urls: ['turn:turn.cloudflare.com:3478'], credential: 'c' }] }, 201)],
+      ['a username that is not a string', json({ iceServers: [{ urls: ['turn:turn.cloudflare.com:3478'], username: 7, credential: 'c' }] }, 201)],
+      ['a credential that is not a string', json({ iceServers: [{ urls: ['turn:turn.cloudflare.com:3478'], username: 'u', credential: 7 }] }, 201)],
+      ['a login on STUN only', json({ iceServers: [{ urls: ['stun:stun.cloudflare.com:3478'], username: 'u', credential: 'c' }] }, 201)],
     ];
     for (const [, response] of cases) {
       vi.stubGlobal('fetch', vi.fn(async () => response));
@@ -231,12 +236,31 @@ describe('turn', () => {
     }
   });
 
+  it('the key id is escaped in the Cloudflare URL', async () => {
+    vi.stubEnv('CLOUDFLARE_TURN_KEY_ID', 'key/../other?x=1');
+    const fetchMock = vi.fn(async () => okResponse());
+    vi.stubGlobal('fetch', fetchMock);
+    const t = convexTest(schema, modules);
+    const { matchId, hostId } = await seedMatch(t, 'connecting');
+    await t.action(api.turn.turnCredentials, { playerId: hostId, matchId });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://rtc.live.cloudflare.com/v1/turn/keys/key%2F..%2Fother%3Fx%3D1/credentials/generate-ice-servers',
+      expect.anything(),
+    );
+  });
+
   it('keeps only Cloudflare STUN and TURN servers', async () => {
     const body = {
       iceServers: [
         { urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.example.test:3478'] },
         {
-          urls: ['turns:turn.cloudflare.com:5349?transport=tcp', 'turn:evil.turn.cloudflare.com.example.test:3478', 'https://turn.cloudflare.com/'],
+          urls: [
+            'turns:turn.cloudflare.com:5349?transport=tcp',
+            'turn:evil.turn.cloudflare.com.example.test:3478',
+            'turn:turn.cloudflare.com.example.test:3478',
+            'turn:relay.example.test:3478?via=turn:turn.cloudflare.com',
+            'https://turn.cloudflare.com/',
+          ],
           username: 'synthetic-user-0001',
           credential: 'synthetic-cred-0001',
         },

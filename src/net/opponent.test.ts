@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getFunctionName, type FunctionReference } from 'convex/server';
 import type { Id } from '../../convex/_generated/dataModel';
 import { createFakeRtcPair, createSignalBus, type FakeSignalTransport } from './fakeRtc';
@@ -47,6 +47,10 @@ function fakeConvex(
 }
 
 describe('connectToOpponent', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('connects through Convex signaling and only the host marks the match playing', async () => {
     const rtc = createFakeRtcPair();
     const bus = createSignalBus();
@@ -108,6 +112,49 @@ describe('connectToOpponent', () => {
     expect(privateRtc.host.config).toEqual({ iceServers: [...ICE, ...TURN], iceTransportPolicy: 'all' });
     expect(privateRtc.guest.config).toEqual({ iceServers: ICE, iceTransportPolicy: 'all' });
     for (const link of privateLinks) link.close();
+  });
+
+  it('a quick match waits 10 s for TURN before giving up', async () => {
+    vi.useFakeTimers();
+    const bus = createSignalBus();
+    const host = fakeConvex(bus.host, undefined, vi.fn(() => new Promise<never>(() => {})));
+    let failure: unknown;
+    void connectToOpponent({ matchId: MATCH, iceServers: ICE, kind: 'quick', convex: host as never, playerId: 'h', role: 'host' }).catch(
+      (err: unknown) => (failure = err),
+    );
+
+    await vi.advanceTimersByTimeAsync(9999);
+    expect(failure).toBeUndefined();
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(failure).toBeInstanceOf(RelayUnavailableError);
+  });
+
+  it('a private match waits 3 s for TURN, then connects without it', async () => {
+    vi.useFakeTimers();
+    const rtc = createFakeRtcPair();
+    const bus = createSignalBus();
+    const never = () => vi.fn(() => new Promise<never>(() => {}));
+    const host = fakeConvex(bus.host, undefined, never());
+    const guest = fakeConvex(bus.guest, undefined, never());
+    const createHost = vi.fn(rtc.createHost);
+    const createGuest = vi.fn(rtc.createGuest);
+    const common = { matchId: MATCH, iceServers: ICE, kind: 'private' as const };
+    const links = Promise.all([
+      connectToOpponent({ ...common, convex: host as never, playerId: 'h', role: 'host', createPeerConnection: createHost }),
+      connectToOpponent({ ...common, convex: guest as never, playerId: 'g', role: 'guest', createPeerConnection: createGuest }),
+    ]);
+
+    await vi.advanceTimersByTimeAsync(2999);
+    expect(createHost).not.toHaveBeenCalled();
+    expect(createGuest).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(createHost).toHaveBeenCalledWith({ iceServers: ICE, iceTransportPolicy: 'all' });
+    expect(createGuest).toHaveBeenCalledWith({ iceServers: ICE, iceTransportPolicy: 'all' });
+
+    await vi.advanceTimersByTimeAsync(100);
+    for (const link of await links) link.close();
   });
 
   it('a quick match without TURN fails before creating a connection or sending a signal', async () => {
