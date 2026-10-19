@@ -2,13 +2,13 @@
 type: story
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: pvp-match-screens
-status: in-progress
+status: staged
 branch: story/pvp-match-screens
 worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/story-pvp-match-screens
 created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
-version:             # set by `wi stage`
+version: 0.9.0
 review_approved:     # set by `wi accept`
 pr:                  # set by `wi pr`
 tag:                 # set by `wi release`; the tag sits on the branch's last commit
@@ -119,3 +119,5 @@ Build the screens that make online play usable: a **Play online** entry on the t
 - 2026-10-18 — Review cycle 1 fixes (c3997c8..9c84f85): rematch withdraw + availability check; stale dispatch closure (matches never connected, Cancel never released codes); rematch link close read as lost connection; connectFailed from live screens; per-match state reset; failure messages; dialogs scroll; announcements (round result folded into next round, errors announced, code announced, sr-only code text, Copy link first); client-side code expiry (Convex does not re-run queries as time passes); Leave match? focus containment; own tank ringed (the proposed YOU marker, as a floor ring); sharing notice and format hint on join screen; text fields keep their keys; Play online aria-disabled offline. Left for reviewer: SHARING_NOTICE wording vs R11 (relay wording waits for turn-relay); extendPrivate can revive an expired code (item 7 code); Leave does not forfeit on the server until disconnect-and-cleanup, so a player who leaves cannot quick match again until then.
 - 2026-10-18 — Review cycle 2 fixes (aff6c6a..43bc62d): refused rematch keeps its message (rematchFailed action); new code no longer inherits the old code's expiry; pendingResult and leaveOpen reset between matches; repeated format error re-announced; join error read once; Join from a link described by the sharing notice; own-tank ring made dark (light floor). Deviation: the countdown no longer announces each second; screen readers hear the round result with 'Round N starts in 3.' and then 'Go.'. Left for reviewer: a rematch request whose owner closed the tab can still pair them for ~60 s (needs presence, disconnect-and-cleanup); Space on focused buttons is cancelled by the game bindings outside text fields (pre-existing; Enter works); Back during an in-flight join or leaving the rematch wait as the second request lands can leave the player in an active match the menu ignores (disconnect-and-cleanup).
 - 2026-10-18 — Test audit: 32 mutants, 8 survived; 7 killed by new tests (f6fa5ba), 1 judged equivalent (instanceof in rematchErrorMessage), tie matchEnd left unpinned (cannot occur). 369 tests pass. Waiting on manual checks before stage.
+- 2026-10-19 — Manual checks skipped by the user on 2026-10-19: connectivity matrix (deferred from network-transport), two-browser flows, keyboard-only walkthrough (AC7), VoiceOver (AC3), axe, rendered contrast, phone landscape/zoom. None of R9 or the connect/rematch flows has been exercised in a browser.
+- 2026-10-19 — Staged: verification passed; version 0.8.0 → 0.9.0; no changelog file.
