@@ -15,7 +15,7 @@ import { useQuickMatch } from '../../net/useQuickMatch';
 import { leaveWhenHidden } from '../../net/visibility';
 import type { HudSnapshot } from '../../render/Scene';
 import { TouchControls } from '../TouchControls';
-import { initialScreen, reduce, type OnlineAction, type OnlineEffect, type OnlineScreen } from './flow';
+import { initialScreen, outcomeAction, reduce, type OnlineAction, type OnlineEffect, type OnlineScreen } from './flow';
 import { Connecting, ConnectFailed, Countdown, Ended, LeaveConfirm, LinkLostBanner, MatchResult, PvpHud } from './MatchScreens';
 import { endedText, linkLostText, rematchErrorMessage, roundResultText, scoreText } from './messages';
 import { JoinWithCode, OnlineMenu, PrivateWaiting, SEARCH_FAILED, Searching, Unavailable } from './OnlineScreens';
@@ -41,9 +41,6 @@ const WAITING_BEAT_MS = 10_000;
 // reportLost is usually called by the player whose network failed, and Convex queues mutations while offline, so the
 // answer may never come; after this long the match is shown as having no result.
 const REPORT_WAIT_MS = 5000;
-// After a bye the leaver's own leave usually lands within a second. If it never does, the leaver's presence has gone
-// stale by this point (last beat up to 5 s before, stale after 15 s), so reportLost gives the remaining player the win.
-const BYE_SETTLE_MS = 21_000;
 const LIVE_SCREENS = ['privateWaiting', 'connecting', 'countdown', 'playing', 'roundResult'];
 
 /**
@@ -70,7 +67,6 @@ export function OnlinePlay(props: Props) {
   const [linkHealth, setLinkHealth] = useState<LinkHealth>({ state: 'ok' });
   const healthRef = useRef<LinkHealth>({ state: 'ok' });
   const watchRef = useRef<LinkWatch | null>(null);
-  const byeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // The match being played, so its end can be read from the server once myMatch stops reporting it.
   const liveMatch = useRef<{ id: Id<'matches'>; role: 'host' | 'guest' } | null>(null);
   const settledMatch = useRef<Id<'matches'> | null>(null);
@@ -100,8 +96,6 @@ export function OnlinePlay(props: Props) {
   const pendingResult = useRef<string | null>(null);
 
   const stopWatch = useCallback(() => {
-    if (byeTimer.current !== null) clearTimeout(byeTimer.current);
-    byeTimer.current = null;
     watchRef.current?.dispose();
     watchRef.current = null;
     healthRef.current = { state: 'ok' };
@@ -198,13 +192,10 @@ export function OnlinePlay(props: Props) {
         if (health.state === 'ok' && was === 'lost') announce('Connection restored.');
       },
       onLost: () => settleLostLink(match.id, match.role),
-      // A bye is the peer's word only, so the win waits for the server: the leaver's own leave, seen through myMatch,
-      // or failing that a report once the leaver's presence has gone stale. Silence from here on is expected.
-      onBye: () => {
-        watchRef.current?.dispose();
-        watchRef.current = null;
-        byeTimer.current = setTimeout(() => settleLostLink(match.id, match.role), BYE_SETTLE_MS);
-      },
+      // A bye is the peer's word only, so it changes nothing here: the result comes from the server, through myMatch
+      // when the leaver's own leave lands, or from the silence report 15 s on, by when the leaver's last beat (sent
+      // before the bye) has gone stale.
+      onBye: () => announce('Your opponent is leaving.'),
     });
     liveMatch.current = { id: match.id, role: match.role };
     if (match.role === 'host') {
@@ -246,18 +237,11 @@ export function OnlinePlay(props: Props) {
 
   /** Shows how the server recorded the match's end; resolves false while it is still in play. */
   async function showOutcome(matchId: Id<'matches'>, role: 'host' | 'guest'): Promise<boolean> {
-    const outcome = await convex.query(api.matches.matchOutcome, { playerId: me, matchId });
-    if (outcome.status === 'playing' || outcome.status === 'connecting' || outcome.status === 'waiting') return false;
+    const action = outcomeAction(await convex.query(api.matches.matchOutcome, { playerId: me, matchId }), role);
+    if (!action) return false;
     settledMatch.current = matchId;
     stopWatch();
-    if (outcome.endReason === 'score') {
-      const [you, them] = role === 'host' ? [outcome.hostScore, outcome.guestScore] : [outcome.guestScore, outcome.hostScore];
-      dispatch({ type: 'matchEnd', you, them });
-    } else if (outcome.endReason === 'left' && outcome.winner === role) {
-      dispatch({ type: 'opponentLeft' });
-    } else {
-      dispatch({ type: 'linkLost', result: outcome.winner === undefined || outcome.winner === null ? 'none' : outcome.winner === role ? 'won' : 'lost' });
-    }
+    dispatch(action);
     return true;
   }
 
@@ -268,6 +252,10 @@ export function OnlinePlay(props: Props) {
     convex
       .mutation(api.matches.reportLost, { playerId: me, matchId })
       .then(() => showOutcome(matchId, role))
+      .then((shown) => {
+        // Still in play on the server (a host that never marked the match connected): nothing to show but no result.
+        if (!shown) dispatch({ type: 'linkLost', result: 'none' });
+      })
       .catch((err) => {
         console.error('Reporting the lost connection failed', err);
         dispatch({ type: 'linkLost', result: 'none' });

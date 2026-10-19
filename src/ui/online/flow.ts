@@ -151,3 +151,23 @@ export function initialScreen(options: { hasBackend: boolean; online: boolean; j
 function matchResult(you: number, them: number): OnlineScreen {
   return { name: 'matchResult', won: you > them, you, them, rematch: 'none' };
 }
+
+/** A match's end as Convex recorded it (matches.matchOutcome). */
+export interface MatchOutcome {
+  status: 'waiting' | 'connecting' | 'playing' | 'finished' | 'abandoned';
+  winner: 'host' | 'guest' | null;
+  endReason?: 'score' | 'forfeit' | 'timeout' | 'left' | 'connection';
+  hostScore: number;
+  guestScore: number;
+}
+
+/** What the recorded end means for this player, or null while the match is still in play. */
+export function outcomeAction(outcome: MatchOutcome, role: 'host' | 'guest'): OnlineAction | null {
+  if (outcome.status === 'waiting' || outcome.status === 'connecting' || outcome.status === 'playing') return null;
+  if (outcome.endReason === 'score') {
+    const [you, them] = role === 'host' ? [outcome.hostScore, outcome.guestScore] : [outcome.guestScore, outcome.hostScore];
+    return { type: 'matchEnd', you, them };
+  }
+  if (outcome.endReason === 'left' && outcome.winner === role) return { type: 'opponentLeft' };
+  return { type: 'linkLost', result: outcome.winner === null ? 'none' : outcome.winner === role ? 'won' : 'lost' };
+}

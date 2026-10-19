@@ -4,7 +4,7 @@ import type { MatchScore } from '../game/match';
 import { generatePvpMap, roundSeed } from '../game/pvpMaps';
 import { IDLE_INPUT } from '../game/sim';
 import type { GameEvent, PlayerInput, TankState } from '../game/types';
-import { reduce } from '../ui/online/flow';
+import { outcomeAction, reduce } from '../ui/online/flow';
 import { GuestSession } from './guestSession';
 import { HostSession } from './hostSession';
 import { createLinkPair } from './link';
@@ -219,7 +219,8 @@ describe('networked session', () => {
     });
   });
 
-  describe('bye ends the match immediately', () => {
+  // The bye only tells the other side early; the result itself always comes from the server (outcomeAction).
+  describe('bye reaches the other side', () => {
     function watchBothEnds() {
       const [hostLink, guestLink] = createLinkPair();
       const host = { onHealth: vi.fn(), onLost: vi.fn(), onBye: vi.fn() };
@@ -242,8 +243,9 @@ describe('networked session', () => {
       expect(host.onLost).not.toHaveBeenCalled();
     });
 
-    it('the host flow ends the match as opponent left and closes the link without telling the server', () => {
-      expect(reduce({ name: 'playing', round: 2 }, { type: 'opponentLeft' })).toEqual({
+    it('once the server records the leave, the host flow ends the match as opponent left without telling the server', () => {
+      const recorded = { status: 'finished', winner: 'host', endReason: 'left', hostScore: 1, guestScore: 0 } as const;
+      expect(reduce({ name: 'playing', round: 2 }, outcomeAction(recorded, 'host')!)).toEqual({
         screen: { name: 'ended', reason: 'opponentLeft' },
         effects: [{ type: 'endLink' }],
       });

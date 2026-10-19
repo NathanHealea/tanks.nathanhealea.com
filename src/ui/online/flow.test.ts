@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { initialScreen, reduce, type OnlineAction, type OnlineScreen } from './flow';
+import { initialScreen, outcomeAction, reduce, type OnlineAction, type OnlineScreen } from './flow';
 
 const MENU: OnlineScreen = { name: 'menu' };
 
@@ -308,5 +308,29 @@ describe('match outcomes', () => {
       expect(step.screen).toBe(ended);
       expect(step.effects).toEqual([]);
     }
+  });
+
+  describe('outcomeAction', () => {
+    const base = { hostScore: 1, guestScore: 2 };
+    it('says nothing while the match is still in play', () => {
+      for (const status of ['waiting', 'connecting', 'playing'] as const) {
+        expect(outcomeAction({ ...base, status, winner: null, endReason: undefined }, 'host')).toBeNull();
+      }
+    });
+
+    it('a score ending is the match result, seen from each side', () => {
+      const outcome = { status: 'finished', winner: 'guest', endReason: 'score', hostScore: 1, guestScore: 3 } as const;
+      expect(outcomeAction(outcome, 'host')).toEqual({ type: 'matchEnd', you: 1, them: 3 });
+      expect(outcomeAction(outcome, 'guest')).toEqual({ type: 'matchEnd', you: 3, them: 1 });
+    });
+
+    it('the opponent leaving is a win; other endings follow the recorded winner', () => {
+      expect(outcomeAction({ ...base, status: 'finished', winner: 'host', endReason: 'left' }, 'host')).toEqual({ type: 'opponentLeft' });
+      expect(outcomeAction({ ...base, status: 'finished', winner: 'guest', endReason: 'left' }, 'host')).toEqual({ type: 'linkLost', result: 'lost' });
+      expect(outcomeAction({ ...base, status: 'finished', winner: 'guest', endReason: 'timeout' }, 'guest')).toEqual({ type: 'linkLost', result: 'won' });
+      expect(outcomeAction({ ...base, status: 'finished', winner: 'host', endReason: 'timeout' }, 'guest')).toEqual({ type: 'linkLost', result: 'lost' });
+      expect(outcomeAction({ ...base, status: 'abandoned', winner: null, endReason: 'connection' }, 'host')).toEqual({ type: 'linkLost', result: 'none' });
+      expect(outcomeAction({ ...base, status: 'abandoned', winner: null, endReason: 'left' }, 'guest')).toEqual({ type: 'linkLost', result: 'none' });
+    });
   });
 });
