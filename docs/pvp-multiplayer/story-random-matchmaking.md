@@ -2,7 +2,7 @@
 type: story
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: random-matchmaking
-status: staged
+status: released
 branch: story/random-matchmaking
 worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/story-random-matchmaking
 created: 2026-10-18
@@ -11,7 +11,7 @@ commit_type:         # optional override for the release subject type (default: 
 version: 0.5.0
 review_approved: 2026-10-18
 pr:                  # set by `wi pr`
-tag:                 # set by `wi release`; the tag sits on the branch's last commit
+tag: v0.5.0
 ---
 
 # Random matchmaking queue
@@ -101,3 +101,4 @@ The schema from `convex-backend-setup` defines `queue` and `matches`. `player-id
 - 2026-10-18 — Test audit (second cycle): HIGH (non-connecting matches untested against the connect timeout) and a real bug (match arriving before join resolved leaked a heartbeat timer) fixed; untested paths covered; all 8 surviving mutants now killed. Remaining LOW: the 5-page sweep cap value is untested (cap of 1 is caught).
 - 2026-10-18 — Staged: verification passed; version 0.4.0 → 0.5.0; no changelog file.
 - 2026-10-18 — Review approved.
+- 2026-10-18 — Released 0.5.0 as v0.5.0.
