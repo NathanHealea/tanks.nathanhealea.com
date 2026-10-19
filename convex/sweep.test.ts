@@ -72,14 +72,15 @@ describe('sweep', () => {
     const waitLivePresence = await seedPresence(t, waitLive, 'host', NOW - 5 * SEC);
 
     const waitHostGone = await seedMatch(t, {
-      kind: 'private', code: 'CCCCCC', status: 'waiting', createdAt: NOW - 5 * MIN, expiresAt: NOW + 5 * MIN,
+      kind: 'private', code: 'CCCCCC', status: 'waiting', createdAt: NOW - 8 * MIN, expiresAt: NOW + 2 * MIN,
     });
-    await seedPresence(t, waitHostGone, 'host', NOW - 61 * SEC);
+    // A waiting host gets five minutes, not one: sharing the code means switching to another app.
+    await seedPresence(t, waitHostGone, 'host', NOW - 5 * MIN - SEC);
     const waitNoPresenceOld = await seedMatch(t, {
-      kind: 'private', code: 'DDDDDD', status: 'waiting', createdAt: NOW - 61 * SEC, expiresAt: NOW + 9 * MIN,
+      kind: 'private', code: 'DDDDDD', status: 'waiting', createdAt: NOW - 5 * MIN - SEC, expiresAt: NOW + 4 * MIN,
     });
     const waitNoPresenceNew = await seedMatch(t, {
-      kind: 'private', code: 'EEEEEE', status: 'waiting', createdAt: NOW - 30 * SEC, expiresAt: NOW + 9 * MIN,
+      kind: 'private', code: 'EEEEEE', status: 'waiting', createdAt: NOW - 4 * MIN, expiresAt: NOW + 6 * MIN,
     });
 
     const connNoGuestOld = await seedMatch(t, {

@@ -5,6 +5,11 @@ import { internalMutation, type MutationCtx } from './_generated/server';
 export const SWEEP_BATCH = 500;
 /** A queue entry, waiting host or player not heard from for this long has gone. */
 export const IDLE_MS = 60_000;
+/**
+ * A waiting host is given longer: sharing the code means switching to another app, where the browser throttles or
+ * suspends the page's heartbeat. A closed tab is caught sooner by its pagehide leave.
+ */
+export const WAITING_IDLE_MS = 5 * 60_000;
 /** Finished matches hold only random ids, roles and scores, and still go after a day. */
 export const RETENTION_MS = 24 * 60 * 60 * 1000;
 
@@ -58,7 +63,7 @@ function silentSince(match: Doc<'matches'>, rows: Doc<'presence'>[]): number {
 async function abandonDeadWaiting(ctx: MutationCtx, now: number) {
   for (const match of await oldestWith(ctx, 'waiting')) {
     const expired = match.expiresAt !== undefined && match.expiresAt < now;
-    const hostGone = now - silentSince(match, await presenceRows(ctx, match)) > IDLE_MS;
+    const hostGone = now - silentSince(match, await presenceRows(ctx, match)) > WAITING_IDLE_MS;
     if (expired || hostGone) await ctx.db.patch(match._id, { status: 'abandoned' });
   }
 }
