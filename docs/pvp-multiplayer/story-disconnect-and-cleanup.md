@@ -2,7 +2,7 @@
 type: story
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: disconnect-and-cleanup
-status: staged
+status: released
 branch: story/disconnect-and-cleanup
 worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/story-disconnect-and-cleanup
 created: 2026-10-18
@@ -11,7 +11,7 @@ commit_type:         # optional override for the release subject type (default: 
 version: 0.10.0
 review_approved: 2026-10-19
 pr:                  # set by `wi pr`
-tag:                 # set by `wi release`; the tag sits on the branch's last commit
+tag: v0.10.0
 ---
 
 # Disconnects, forfeits and stale-data cleanup
@@ -107,3 +107,4 @@ Matches have `status` and `endReason` (item 2), and Convex learns of round resul
 - 2026-10-19 — User 2026-10-19: approved the 5-minute waiting-host idle limit, and reported 'the game worked' after manual testing. Individual AC1–AC4 outcomes, iOS backgrounding and the function-call count were not reported separately.
 - 2026-10-19 — Staged: verification passed; version 0.9.0 → 0.10.0; no changelog file.
 - 2026-10-19 — Review approved.
+- 2026-10-19 — Released 0.10.0 as v0.10.0.
