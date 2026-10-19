@@ -2,7 +2,7 @@
 type: story
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: player-identity
-status: staged
+status: released
 branch: story/player-identity
 worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/story-player-identity
 created: 2026-10-18
@@ -11,7 +11,7 @@ commit_type:         # optional override for the release subject type (default: 
 version: 0.2.0
 review_approved: 2026-10-18
 pr:                  # set by `wi pr`
-tag:                 # set by `wi release`; the tag sits on the branch's last commit
+tag: v0.2.0
 ---
 
 # Anonymous per-load player identity
@@ -92,3 +92,4 @@ The user requirement: no login, no account, a GUID generated each time the game 
 - 2026-10-18 — Test audit: 34 of 40 mutants killed initially; fixed the gaps (ConvexError class, view values, URL/history/IndexedDB writes, client ids checked against the server validator) and corrected two overstated comments; all 7 re-run mutants killed.
 - 2026-10-18 — Staged: verification passed; version 0.1.2 → 0.2.0; no changelog file.
 - 2026-10-18 — Review approved.
+- 2026-10-18 — Released 0.2.0 as v0.2.0.
