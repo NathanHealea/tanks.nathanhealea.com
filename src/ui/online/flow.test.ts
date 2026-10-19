@@ -184,4 +184,18 @@ describe('online flow', () => {
     });
     expect(initialScreen({ hasBackend: true, online: true, joinCode: null })).toEqual(MENU);
   });
+
+  it('leaving a live match forfeits it and returns to the menu', () => {
+    const live: OnlineScreen[] = [
+      { name: 'connecting' },
+      { name: 'countdown', round: 2 },
+      { name: 'playing', round: 2 },
+      { name: 'roundResult', round: 1, outcome: 'won', you: 1, them: 0 },
+    ];
+    for (const screen of live) {
+      expect(reduce(screen, { type: 'leave' })).toEqual({ screen: { name: 'menu' }, effects: [{ type: 'leaveMatch' }] });
+    }
+    const menu: OnlineScreen = { name: 'menu' };
+    expect(reduce(menu, { type: 'leave' }).screen).toBe(menu);
+  });
 });

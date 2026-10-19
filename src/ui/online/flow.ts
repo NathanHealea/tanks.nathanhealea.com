@@ -29,7 +29,9 @@ export type OnlineAction =
   | { type: 'roundEnd'; round: number; outcome: 'won' | 'lost' | 'draw'; you: number; them: number }
   | { type: 'matchEnd'; you: number; them: number }
   | { type: 'requestRematch' }
-  | { type: 'cancelRematch' };
+  | { type: 'cancelRematch' }
+  /** Leave match? → Leave: forfeits a live match. */
+  | { type: 'leave' };
 
 /** Server and connection work a transition asks the App to start; the reducer itself stays pure. */
 export type OnlineEffect =
@@ -49,6 +51,8 @@ const go = (screen: OnlineScreen, ...effects: OnlineEffect[]): Result => ({ scre
 /** The online screens as a state machine: every screen and the actions it accepts; anything else is ignored. */
 export function reduce(screen: OnlineScreen, action: OnlineAction): Result {
   const same: Result = { screen, effects: [] };
+  const live = ['connecting', 'countdown', 'playing', 'roundResult'].includes(screen.name);
+  if (action.type === 'leave') return live ? go({ name: 'menu' }, { type: 'leaveMatch' }) : same;
   switch (screen.name) {
     case 'menu':
       if (action.type === 'quickMatch') return go({ name: 'searching' }, { type: 'joinQueue' });
