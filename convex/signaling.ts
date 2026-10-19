@@ -56,7 +56,8 @@ export const markConnected = mutation({
   handler: async (ctx, { playerId, matchId }) => {
     const { match, role } = await loadMatchAs(ctx, matchId, playerId);
     if (role !== 'host') throw new ConvexError('Only the host can mark connected');
-    if (match.status !== 'connecting') return null;
+    // Same window as everything else: a match matchmaking already treats as dead must not be revived.
+    if (!isConnecting(match, Date.now())) return null;
     await ctx.db.patch(matchId, { status: 'playing' });
     await deleteSignals(ctx, matchId);
     return null;
