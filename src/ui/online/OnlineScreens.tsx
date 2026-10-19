@@ -212,7 +212,9 @@ export function JoinWithCode(props: {
   const [formatError, setFormatError] = useState(false);
   // Counts rejected submits, so the same format error is announced and refocused each time.
   const [rejected, setRejected] = useState(0);
-  const message = formatError ? "That isn't a match code." : props.error ? joinErrorMessage(props.error) : null;
+  // Being in line (BUSY) is a status, not a fault in the code, so it never marks the field invalid.
+  const inLine = !formatError && props.error === 'BUSY';
+  const message = formatError ? "That isn't a match code." : props.error && !inLine ? joinErrorMessage(props.error) : null;
 
   const input = useRef<HTMLInputElement>(null);
   const { announce } = props;
@@ -222,6 +224,10 @@ export function JoinWithCode(props: {
     if (document.activeElement === input.current) announce(message);
     else input.current?.focus();
   }, [message, rejected, announce]);
+
+  useEffect(() => {
+    if (inLine) announce(joinErrorMessage('BUSY'));
+  }, [inLine, announce]);
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -234,7 +240,7 @@ export function JoinWithCode(props: {
 
   return (
     <Card title={props.fromLink && props.initialCode ? `Join ${formatCode(props.initialCode)}?` : 'Join with code'}>
-      {/* A join link skips the online menu, so the person about to share their IP address reads it here. */}
+      {/* A join link skips the online menu, so the notice is shown here too. */}
       <p id={noticeId} className="online-note">
         {SHARING_NOTICE}
       </p>
@@ -263,6 +269,7 @@ export function JoinWithCode(props: {
             {message}
           </p>
         )}
+        {inLine && <p>{joinErrorMessage('BUSY')}</p>}
         <div className="button-column">
           {/* aria-disabled rather than disabled, so focus is not dropped from the button while joining. */}
           <button

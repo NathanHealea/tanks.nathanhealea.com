@@ -368,7 +368,10 @@ export function OnlinePlay(props: Props) {
   }, [screen.name, priv.match, expire]);
 
   useEffect(() => {
-    if (priv.joinError && screen.name === 'joining' && screen.busy) dispatch({ type: 'joinFailed', error: priv.joinError });
+    if (!priv.joinError || screen.name !== 'joining') return;
+    // While in line (BUSY) the retries are quiet, but any other answer ends the wait and is shown.
+    const settled = screen.busy || (screen.error === 'BUSY' && priv.joinError !== 'BUSY');
+    if (settled) dispatch({ type: 'joinFailed', error: priv.joinError });
   }, [priv.joinError, screen, dispatch]);
 
   // A full hour keeps a joining player in line: the join is retried quietly, without going busy and re-announcing
