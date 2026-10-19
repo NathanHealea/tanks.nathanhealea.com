@@ -39,7 +39,7 @@ Same backend pieces as `random-matchmaking`: the `matches` table with its `by_co
 
 ## Requirements
 
-- **R1** — `createPrivate` creates a `private` match in status `waiting` with the caller as host, a random seed, and a code of 6 characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789` (no `0`, `O`, `1`, `I`, `L`), unique among active matches, and an `expiresAt` 10 minutes out.
+- **R1** — `createPrivate` creates a `private` match in status `waiting` with the caller as host, a random unsigned 32-bit integer seed (as `roundSeed` requires), and a code of 6 characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789` (no `0`, `O`, `1`, `I`, `L`), unique among active matches, and an `expiresAt` 10 minutes out.
 - **R2** — A player holds at most one waiting private match; creating another cancels the previous one so its code stops working.
 - **R3** — `joinPrivate({ playerId, code })` normalizes the code (uppercase, strip spaces and dashes), sets the caller as guest and moves the match to `connecting`.
 - **R4** — `joinPrivate` fails, changing nothing, with a distinct error for each case: no such code (`CODE_NOT_FOUND`), code past `expiresAt` (`CODE_EXPIRED`), match already has a guest (`MATCH_FULL`), caller is the host (`OWN_CODE`), caller already in another active match (`ALREADY_IN_MATCH`).

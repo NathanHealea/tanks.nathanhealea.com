@@ -38,7 +38,7 @@ The schema from `convex-backend-setup` defines `queue` and `matches`. `player-id
 
 ## Requirements
 
-- **R1** — When the queue holds a live entry from another player (heartbeat within the last 30 seconds), `joinQueue` removes that entry and creates a `quick` match in status `connecting`, with the waiting player as host, the caller as guest, a random 32-bit `seed`, `round: 0` and scores 0–0.
+- **R1** — When the queue holds a live entry from another player (heartbeat within the last 30 seconds), `joinQueue` removes that entry and creates a `quick` match in status `connecting`, with the waiting player as host, the caller as guest, a random unsigned 32-bit integer `seed` (0 ≤ seed < 2³², which `roundSeed` requires), `round: 0` and scores 0–0.
 - **R2** — When no live entry from another player exists, `joinQueue` adds the caller to the queue and returns `{ status: 'queued' }`.
 - **R3** — Pairing is first-in, first-out among live entries; entries older than 30 seconds since their last heartbeat are never paired.
 - **R4** — A player is never paired with themselves and is never in more than one active match (`waiting`, `connecting` or `playing`) or more than one queue entry; calling `joinQueue` again while queued or matched returns the current state without creating anything.
@@ -61,7 +61,7 @@ The schema from `convex-backend-setup` defines `queue` and `matches`. `player-id
 | ID | Covers | Test | File | Asserts |
 |----|--------|------|------|---------|
 | T1 | R2 | `first joiner is queued` | `convex/matchmaking.test.ts` | Empty queue → `{ status: 'queued' }`, one queue row |
-| T2 | R1 | `second joiner is paired` | `convex/matchmaking.test.ts` | Match row with host A, guest B, `connecting`, seed is a 32-bit integer, queue empty |
+| T2 | R1 | `second joiner is paired` | `convex/matchmaking.test.ts` | Match row with host A, guest B, `connecting`, seed is an unsigned 32-bit integer, queue empty |
 | T3 | R3 | `stale entries are skipped` | `convex/matchmaking.test.ts` | Using fake timers, A ages 40 s; B joins → B queued, not paired with A |
 | T4 | R3 | `pairing is FIFO` | `convex/matchmaking.test.ts` | A, then C queued; B joins → paired with A |
 | T5 | R4 | `rejoining is idempotent` | `convex/matchmaking.test.ts` | A joins twice → one queue row; A matched then joins → returns matched, no new rows |
