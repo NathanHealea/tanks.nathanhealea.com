@@ -32,3 +32,4 @@ export const MINE = {
 
 export const MAX_LIVES = 3;
 export const OUTCOME_DELAY = 1.8;
+export const ROUNDS_TO_WIN = 3;
