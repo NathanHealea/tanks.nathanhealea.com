@@ -75,10 +75,10 @@ WebRTC needs the two peers to exchange an SDP offer and answer (descriptions of 
 
 ## Implementation plan
 
-1. [ ] Add `sendSignal`, `inbox` and `markConnected` with their rules — touches `convex/signaling.ts`, `convex/signaling.test.ts` — tests T1, T2, T3, T4
-2. [ ] Add the `Link` interface and in-memory pair — touches `src/net/link.ts`, `src/net/link.test.ts` — tests T9
-3. [ ] Add `connectPeer` with negotiation, the `hello` check and the three failure modes, plus the ICE server config — touches `src/net/peer.ts`, `src/net/peer.test.ts`, `src/net/iceServers.ts`, `src/net/iceServers.test.ts` — tests T5, T6, T7, T8, T10
-4. [ ] Manual connectivity matrix against the dev deployment — touches nothing — tests none (manual, see above)
+1. [x] Add `sendSignal`, `inbox` and `markConnected` with their rules — touches `convex/signaling.ts`, `convex/signaling.test.ts` — tests T1, T2, T3, T4
+2. [x] Add the `Link` interface and in-memory pair — touches `src/net/link.ts`, `src/net/link.test.ts` — tests T9
+3. [x] Add `connectPeer` with negotiation, the `hello` check and the three failure modes, plus the ICE server config — touches `src/net/peer.ts`, `src/net/peer.test.ts`, `src/net/iceServers.ts`, `src/net/iceServers.test.ts` — tests T5, T6, T7, T8, T10
+4. [x] Manual connectivity matrix — deferred to `pvp-match-screens` by the user (2026-10-18): nothing can start a real connection until those screens exist — touches nothing — tests none (manual)
 
 **Must not change:** The `matches` access rules from `player-identity`.
 
@@ -97,3 +97,5 @@ WebRTC needs the two peers to exchange an SDP offer and answer (descriptions of 
 - 2026-10-18 — Planned.
 - 2026-10-18 — Plan approved.
 - 2026-10-18 — Started on branch story/webrtc-connection from origin/pvp-tank.
+- 2026-10-18 — Step 3 built test-first and committed; stopped for user review before any real-network use (high-risk). Mutation checks: all 10 meaningful breaks killed after adding early-ICE and late-open tests.
+- 2026-10-18 — Step 4 deferred to pvp-match-screens by the user; recorded there as a required pre-staging check.
