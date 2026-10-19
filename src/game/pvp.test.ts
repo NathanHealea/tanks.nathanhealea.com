@@ -77,8 +77,18 @@ describe('pvp', () => {
     const noP1 = ['#####', '#..2#', '#####'];
     // Control case: proves the throws below come from the missing spawn, not from a missing function.
     expect(createPvpGame(['#####', '#P.2#', '#####'], 7).tanks).toHaveLength(2);
-    expect(() => createPvpGame(noP2, 7)).toThrow(Error);
-    expect(() => createPvpGame(noP1, 7)).toThrow(Error);
+    expect(() => createPvpGame(noP2, 7)).toThrow('needs both a P and a 2');
+    expect(() => createPvpGame(noP1, 7)).toThrow('needs both a P and a 2');
+  });
+
+  it('a decided round records when it ended', () => {
+    // Scene waits OUTCOME_DELAY after outcomeTime; an unset time would end the round the instant a tank pops.
+    const s = createPvpGame(OPEN, 7);
+    step(s, { p1: { ...IDLE_INPUT, aim: Math.PI / 2, fire: true } });
+    for (let tick = 0; tick < 120 && !s.outcome; tick++) step(s, {});
+    expect(s.outcome).toBe('won');
+    expect(s.outcomeTime).toBeGreaterThan(0);
+    expect(s.outcomeTime).toBe(s.time);
   });
 
   it('a hit wins the round', () => {
