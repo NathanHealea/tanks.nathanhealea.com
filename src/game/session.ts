@@ -11,6 +11,8 @@ export interface GameSession {
   /** Ticks the last advance() ran; when 0 the caller should keep one-shot actions queued for the next frame. */
   readonly ticksLastAdvance: number;
   readonly localPlayerId: string;
+  /** Seconds before play starts; always 0 for a campaign level. */
+  readonly countdownLeft: number;
   advance(elapsed: number, localInput: PlayerInput): GameEvent[];
 }
 
@@ -34,6 +36,7 @@ export class LocalSession implements GameSession {
   state: GameState;
   ticksLastAdvance = 0;
   readonly localPlayerId: string;
+  readonly countdownLeft = 0;
   private clock = new FixedClock();
 
   constructor(levelIndex: number, playerIds: string[], seed: number) {

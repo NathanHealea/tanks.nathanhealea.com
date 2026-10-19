@@ -217,4 +217,35 @@ describe('GuestSession', () => {
     expect(before.pos.x).toBeCloseTo(9.5, 5);
     expect(before.pos.z).toBeCloseTo(2.5, 5);
   });
+
+  it('a wall break whose snapshot was lost still redraws the wall, exactly once', () => {
+    const [host, link] = createLinkPair();
+    const guest = new GuestSession(link, OPEN, 1);
+    const cell = 3 * 20 + 5;
+    // The snapshot that carried the wallBreak event was dropped; a later one only lists the cell as broken.
+    sendSnap(host, { tick: 4, time: 1.0, broken: [cell] });
+    const first = guest.advance(DT, IDLE_INPUT).filter((e) => e.type === 'wallBreak');
+    expect(first).toEqual([expect.objectContaining({ type: 'wallBreak', col: 5, row: 3 })]);
+    sendSnap(host, { tick: 6, time: 1.1, broken: [cell] });
+    expect(guest.advance(DT, IDLE_INPUT).filter((e) => e.type === 'wallBreak')).toEqual([]);
+  });
+
+  it('a wall break that did arrive is not doubled by a stand-in', () => {
+    const [host, link] = createLinkPair();
+    const guest = new GuestSession(link, OPEN, 1);
+    const cell = 3 * 20 + 5;
+    const wallBreak = { type: 'wallBreak' as const, pos: { x: 0, z: 0 }, col: 5, row: 3 };
+    sendSnap(host, { tick: 4, time: 1.0, broken: [cell], events: [wallBreak] });
+    expect(guest.advance(DT, IDLE_INPUT).filter((e) => e.type === 'wallBreak')).toHaveLength(1);
+  });
+
+  it('counts its own countdown down from the round start', () => {
+    const [, link] = createLinkPair();
+    const guest = new GuestSession(link, OPEN, 1, 1, 3);
+    expect(guest.countdownLeft).toBe(3);
+    for (let i = 0; i < 60; i++) guest.advance(DT, IDLE_INPUT);
+    expect(guest.countdownLeft).toBeCloseTo(2, 5);
+    for (let i = 0; i < 200; i++) guest.advance(DT, IDLE_INPUT);
+    expect(guest.countdownLeft).toBe(0);
+  });
 });

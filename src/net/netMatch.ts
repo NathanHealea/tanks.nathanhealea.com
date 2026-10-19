@@ -81,7 +81,7 @@ export class GuestMatch {
       const message = parseHostMessage(raw);
       if (message?.t === 'roundStart') {
         this.session?.dispose();
-        this.session = new GuestSession(link, message.rows, message.seed, message.round);
+        this.session = new GuestSession(link, message.rows, message.seed, message.round, COUNTDOWN_SECONDS);
         handlers.onRound(this.session, message.round);
       } else if (message?.t === 'roundEnd') {
         handlers.onRoundEnd(message);

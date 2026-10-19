@@ -1,4 +1,5 @@
 import { DT } from '../game/config';
+import { cellCenter } from '../game/grid';
 import { wrapAngle } from '../game/math';
 import { FixedClock, type GameSession } from '../game/session';
 import { createPvpGame } from '../game/sim';
@@ -32,6 +33,9 @@ export class GuestSession implements GameSession {
   private fires = 0;
   private mines = 0;
   private ticksSinceInput = 0;
+  private appliedBroken = new Set<number>();
+  private announcedBroken = new Set<number>();
+  countdownLeft: number;
   private stopListening: () => void;
 
   constructor(
@@ -39,7 +43,9 @@ export class GuestSession implements GameSession {
     rows: string[],
     seed: number,
     private readonly round = 1,
+    countdownSeconds = 0,
   ) {
+    this.countdownLeft = countdownSeconds;
     this.state = createPvpGame(rows, seed);
     this.stopListening = link.onMessage((channel, raw) => {
       if (channel !== 'state') return;
@@ -56,7 +62,10 @@ export class GuestSession implements GameSession {
 
   advance(elapsed: number, localInput: PlayerInput): GameEvent[] {
     this.sendInput(elapsed, localInput);
+    // Counted locally from the round start: the host's countdown snapshots are all identical, so they carry no clock.
+    this.countdownLeft = Math.max(0, this.countdownLeft - elapsed);
     const events = this.fresh.flatMap((snapshot) => snapshot.events);
+    for (const e of events) if (e.type === 'wallBreak') this.announcedBroken.add(e.row * this.state.grid.cols + e.col);
     const firstSnapshot = this.renderTime === null && this.fresh.length > 0;
     this.fresh = [];
     const newest = this.snapshots[this.snapshots.length - 1];
@@ -68,6 +77,7 @@ export class GuestSession implements GameSession {
     if (this.renderTime < target - MAX_RENDER_LAG) this.renderTime = target;
 
     this.render(this.renderTime, newest);
+    events.push(...this.applyBroken(newest.broken));
     const me = this.state.tanks.find((t) => t.id === this.localPlayerId);
     if (me && localInput.aim !== null) me.turret = localInput.aim;
     return events;
@@ -126,9 +136,25 @@ export class GuestSession implements GameSession {
     this.state.mines = newest.mines;
     this.state.outcome = newest.outcome;
     this.state.winner = newest.winner;
-    for (const cell of newest.broken) {
-      if (cell < this.state.grid.cells.length) this.state.grid.cells[cell] = EMPTY;
+  }
+
+  /**
+   * Clears every newly broken cork cell. A cell whose wallBreak event was lost with a dropped snapshot gets a stand-in
+   * event, since the renderer redraws walls only on wallBreak.
+   */
+  private applyBroken(broken: number[]): GameEvent[] {
+    const grid = this.state.grid;
+    const standIns: GameEvent[] = [];
+    for (const cell of broken) {
+      if (cell >= grid.cells.length || this.appliedBroken.has(cell)) continue;
+      this.appliedBroken.add(cell);
+      grid.cells[cell] = EMPTY;
+      if (this.announcedBroken.has(cell)) continue;
+      const col = cell % grid.cols;
+      const row = Math.floor(cell / grid.cols);
+      standIns.push({ type: 'wallBreak', pos: cellCenter(grid, col, row), col, row });
     }
+    return standIns;
   }
 }
 
