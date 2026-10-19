@@ -3,9 +3,8 @@ import type { JoinError } from '../../net/joinErrors';
 import { buildJoinUrl, formatCode, normalizeCode } from '../../net/share';
 import { joinErrorMessage, spokenCode } from './messages';
 
-/** R11's wording, true once quick matches are relay-only (turn-relay R6). The README's disclosure (pvp-deploy-docs R4) must say the same. */
-export const SHARING_NOTICE =
-  "Private matches connect you straight to your friend, so each of you can see the other's IP address. Quick matches go through a relay, so strangers can't see it.";
+/** Every match is relay-only (turn-relay R6). The README's disclosure (pvp-deploy-docs R4) must say the same. */
+export const SHARING_NOTICE = "Matches go through a relay, so other players can't see your IP address.";
 
 /** A modal card in the campaign's overlay style, holding any number of actions. */
 export function Card({ title, children }: { title: string; children: ReactNode }) {

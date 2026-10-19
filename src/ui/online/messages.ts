@@ -32,12 +32,12 @@ export function roundResultText(outcome: 'won' | 'lost' | 'draw'): string {
   return outcome === 'won' ? 'You won the round' : outcome === 'lost' ? 'They won the round' : 'Draw';
 }
 
-const UNREACHABLE = "Couldn't reach your opponent. Their network may block direct connections.";
+const UNREACHABLE = "Couldn't reach your opponent. Check your connection and try again.";
 
 export function connectFailedMessage(reason: ConnectFailReason): string {
   if (reason === 'VERSION_MISMATCH') return 'Your opponent is on a different version. Reload to update.';
   if (reason === 'RELAY_UNAVAILABLE') {
-    return "Quick matches can't start right now. Try again soon, or play a private match with a friend.";
+    return "Online matches can't start right now. Try again in a few minutes.";
   }
   return UNREACHABLE;
 }

@@ -13,7 +13,7 @@ const TURN: RTCIceServer[] = [{ urls: 'turn:turn.example.test:3478', username: '
 function fakeConvex(
   side: FakeSignalTransport,
   markConnected = vi.fn().mockResolvedValue(null),
-  turn = vi.fn().mockRejectedValue(new Error('TURN_UNAVAILABLE')),
+  turn = vi.fn().mockResolvedValue({ iceServers: TURN }),
 ) {
   return {
     markConnected,
@@ -56,7 +56,7 @@ describe('connectToOpponent', () => {
     const bus = createSignalBus();
     const host = fakeConvex(bus.host);
     const guest = fakeConvex(bus.guest);
-    const common = { matchId: MATCH, iceServers: ICE, kind: 'private' as const };
+    const common = { matchId: MATCH, iceServers: ICE };
     const links = await Promise.all([
       connectToOpponent({ ...common, convex: host as never, playerId: 'h', role: 'host', createPeerConnection: rtc.createHost }),
       connectToOpponent({ ...common, convex: guest as never, playerId: 'g', role: 'guest', createPeerConnection: rtc.createGuest }),
@@ -72,7 +72,7 @@ describe('connectToOpponent', () => {
     const bus = createSignalBus();
     const host = fakeConvex(bus.host, vi.fn().mockRejectedValue(new Error('Match is not connecting')));
     const guest = fakeConvex(bus.guest);
-    const common = { matchId: MATCH, iceServers: ICE, kind: 'private' as const };
+    const common = { matchId: MATCH, iceServers: ICE };
     const [hostResult, guestLink] = await Promise.allSettled([
       connectToOpponent({ ...common, convex: host as never, playerId: 'h', role: 'host', createPeerConnection: rtc.createHost }),
       connectToOpponent({ ...common, convex: guest as never, playerId: 'g', role: 'guest', createPeerConnection: rtc.createGuest }),
@@ -82,44 +82,29 @@ describe('connectToOpponent', () => {
     if (guestLink.status === 'fulfilled') guestLink.value.close();
   });
 
-  it('relay policy follows match kind', async () => {
-    const quickRtc = createFakeRtcPair();
-    const quickBus = createSignalBus();
-    const quickHost = fakeConvex(quickBus.host, undefined, vi.fn().mockResolvedValue({ iceServers: TURN }));
-    const quickGuest = fakeConvex(quickBus.guest, undefined, vi.fn().mockResolvedValue({ iceServers: TURN }));
-    const quick = { matchId: MATCH, iceServers: ICE, kind: 'quick' as const };
-    const quickLinks = await Promise.all([
-      connectToOpponent({ ...quick, convex: quickHost as never, playerId: 'h', role: 'host', createPeerConnection: quickRtc.createHost }),
-      connectToOpponent({ ...quick, convex: quickGuest as never, playerId: 'g', role: 'guest', createPeerConnection: quickRtc.createGuest }),
+  it('every match is relay-only', async () => {
+    const rtc = createFakeRtcPair();
+    const bus = createSignalBus();
+    const host = fakeConvex(bus.host);
+    const guest = fakeConvex(bus.guest);
+    const common = { matchId: MATCH, iceServers: ICE };
+    const links = await Promise.all([
+      connectToOpponent({ ...common, convex: host as never, playerId: 'h', role: 'host', createPeerConnection: rtc.createHost }),
+      connectToOpponent({ ...common, convex: guest as never, playerId: 'g', role: 'guest', createPeerConnection: rtc.createGuest }),
     ]);
-    expect(quickHost.turn).toHaveBeenCalledWith({ playerId: 'h', matchId: MATCH });
-    expect(quickGuest.turn).toHaveBeenCalledWith({ playerId: 'g', matchId: MATCH });
-    expect(quickRtc.host.config).toEqual({ iceServers: [...ICE, ...TURN], iceTransportPolicy: 'relay' });
-    expect(quickRtc.guest.config).toEqual({ iceServers: [...ICE, ...TURN], iceTransportPolicy: 'relay' });
-    for (const link of quickLinks) link.close();
-
-    const privateRtc = createFakeRtcPair();
-    const privateBus = createSignalBus();
-    const privateHost = fakeConvex(privateBus.host, undefined, vi.fn().mockResolvedValue({ iceServers: TURN }));
-    const privateGuest = fakeConvex(privateBus.guest);
-    const priv = { matchId: MATCH, iceServers: ICE, kind: 'private' as const };
-    const privateLinks = await Promise.all([
-      connectToOpponent({ ...priv, convex: privateHost as never, playerId: 'h', role: 'host', createPeerConnection: privateRtc.createHost }),
-      connectToOpponent({ ...priv, convex: privateGuest as never, playerId: 'g', role: 'guest', createPeerConnection: privateRtc.createGuest }),
-    ]);
-    expect(privateHost.turn).toHaveBeenCalledWith({ playerId: 'h', matchId: MATCH });
-    expect(privateGuest.turn).toHaveBeenCalledWith({ playerId: 'g', matchId: MATCH });
-    expect(privateRtc.host.config).toEqual({ iceServers: [...ICE, ...TURN], iceTransportPolicy: 'all' });
-    expect(privateRtc.guest.config).toEqual({ iceServers: ICE, iceTransportPolicy: 'all' });
-    for (const link of privateLinks) link.close();
+    expect(host.turn).toHaveBeenCalledWith({ playerId: 'h', matchId: MATCH });
+    expect(guest.turn).toHaveBeenCalledWith({ playerId: 'g', matchId: MATCH });
+    expect(rtc.host.config).toEqual({ iceServers: [...ICE, ...TURN], iceTransportPolicy: 'relay' });
+    expect(rtc.guest.config).toEqual({ iceServers: [...ICE, ...TURN], iceTransportPolicy: 'relay' });
+    for (const link of links) link.close();
   });
 
-  it('a quick match waits 10 s for TURN before giving up', async () => {
+  it('a match waits 10 s for TURN before giving up', async () => {
     vi.useFakeTimers();
     const bus = createSignalBus();
     const host = fakeConvex(bus.host, undefined, vi.fn(() => new Promise<never>(() => {})));
     let failure: unknown;
-    void connectToOpponent({ matchId: MATCH, iceServers: ICE, kind: 'quick', convex: host as never, playerId: 'h', role: 'host' }).catch(
+    void connectToOpponent({ matchId: MATCH, iceServers: ICE, convex: host as never, playerId: 'h', role: 'host' }).catch(
       (err: unknown) => (failure = err),
     );
 
@@ -130,41 +115,15 @@ describe('connectToOpponent', () => {
     expect(failure).toBeInstanceOf(RelayUnavailableError);
   });
 
-  it('a private match waits 3 s for TURN, then connects without it', async () => {
-    vi.useFakeTimers();
+  it('a match without TURN fails before creating a connection or sending a signal', async () => {
     const rtc = createFakeRtcPair();
     const bus = createSignalBus();
-    const never = () => vi.fn(() => new Promise<never>(() => {}));
-    const host = fakeConvex(bus.host, undefined, never());
-    const guest = fakeConvex(bus.guest, undefined, never());
+    const unavailable = () => vi.fn().mockRejectedValue(new Error('TURN_UNAVAILABLE'));
+    const host = fakeConvex(bus.host, undefined, unavailable());
+    const guest = fakeConvex(bus.guest, undefined, unavailable());
     const createHost = vi.fn(rtc.createHost);
     const createGuest = vi.fn(rtc.createGuest);
-    const common = { matchId: MATCH, iceServers: ICE, kind: 'private' as const };
-    const links = Promise.all([
-      connectToOpponent({ ...common, convex: host as never, playerId: 'h', role: 'host', createPeerConnection: createHost }),
-      connectToOpponent({ ...common, convex: guest as never, playerId: 'g', role: 'guest', createPeerConnection: createGuest }),
-    ]);
-
-    await vi.advanceTimersByTimeAsync(2999);
-    expect(createHost).not.toHaveBeenCalled();
-    expect(createGuest).not.toHaveBeenCalled();
-
-    await vi.advanceTimersByTimeAsync(1);
-    expect(createHost).toHaveBeenCalledWith({ iceServers: ICE, iceTransportPolicy: 'all' });
-    expect(createGuest).toHaveBeenCalledWith({ iceServers: ICE, iceTransportPolicy: 'all' });
-
-    await vi.advanceTimersByTimeAsync(100);
-    for (const link of await links) link.close();
-  });
-
-  it('a quick match without TURN fails before creating a connection or sending a signal', async () => {
-    const rtc = createFakeRtcPair();
-    const bus = createSignalBus();
-    const host = fakeConvex(bus.host);
-    const guest = fakeConvex(bus.guest);
-    const createHost = vi.fn(rtc.createHost);
-    const createGuest = vi.fn(rtc.createGuest);
-    const quick = { matchId: MATCH, iceServers: ICE, kind: 'quick' as const };
+    const quick = { matchId: MATCH, iceServers: ICE };
     const results = await Promise.allSettled([
       connectToOpponent({ ...quick, convex: host as never, playerId: 'h', role: 'host', createPeerConnection: createHost }),
       connectToOpponent({ ...quick, convex: guest as never, playerId: 'g', role: 'guest', createPeerConnection: createGuest }),

@@ -1,7 +1,7 @@
 import type { ConvexReactClient } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
-import { iceServersFromEnv, TURN_WAIT_MS, withTurn } from './iceServers';
+import { iceServersFromEnv, withTurn } from './iceServers';
 import type { Link } from './link';
 import { connectPeer, type SignalTransport } from './peer';
 
@@ -24,7 +24,7 @@ export function convexSignals(convex: ConvexLike, matchId: Id<'matches'>, player
   };
 }
 
-/** A quick match could not get the relay it requires; distinct from PeerError, since the peer was never tried. */
+/** The match could not get the relay it requires; distinct from PeerError, since the peer was never tried. */
 export class RelayUnavailableError extends Error {
   constructor() {
     super('RELAY_UNAVAILABLE');
@@ -32,8 +32,8 @@ export class RelayUnavailableError extends Error {
   }
 }
 
-// Giving up on TURN means failing a quick match outright, not falling back, so it is given longer than a private one.
-const QUICK_TURN_WAIT_MS = 10_000;
+// Giving up on TURN fails the match outright, since there is no direct fallback, so it is given time to answer.
+const RELAY_WAIT_MS = 10_000;
 
 /**
  * Connects to the opponent in a matched game. The host then marks the match playing, which also deletes its signals
@@ -44,28 +44,27 @@ export async function connectToOpponent(options: {
   matchId: Id<'matches'>;
   playerId: string;
   role: 'host' | 'guest';
-  kind: 'quick' | 'private';
   iceServers?: RTCIceServer[];
   createPeerConnection?: (config: RTCConfiguration) => RTCPeerConnection;
 }): Promise<Link> {
-  const { convex, matchId, playerId, role, kind } = options;
+  const { convex, matchId, playerId, role } = options;
   const base = options.iceServers ?? iceServersFromEnv(import.meta.env.VITE_ICE_SERVERS);
   const turn = await withTurn(
     base,
     () => convex.action(api.turn.turnCredentials, { playerId, matchId }),
-    kind === 'quick' ? QUICK_TURN_WAIT_MS : TURN_WAIT_MS,
+    RELAY_WAIT_MS,
   );
-  // A quick match is against a stranger: without a relay it does not connect at all, rather than reveal an address
-  // (R6). Failing before the peer connection exists means no candidate is ever gathered or sent.
-  if (kind === 'quick' && !turn.relay) {
-    console.error('Quick match needs a TURN relay and none is available');
+  // No player's address may reach another (R6, user decision 2026-10-19), so without a relay a match does not connect
+  // at all. Failing before the peer connection exists means no candidate is ever gathered or sent.
+  if (!turn.relay) {
+    console.error('A match needs a TURN relay and none is available');
     throw new RelayUnavailableError();
   }
   const link = await connectPeer({
     role,
     signals: convexSignals(convex, matchId, playerId),
     iceServers: turn.iceServers,
-    iceTransportPolicy: kind === 'quick' ? 'relay' : 'all',
+    iceTransportPolicy: 'relay',
     createPeerConnection: options.createPeerConnection,
   });
   if (role === 'host') {

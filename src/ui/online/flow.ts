@@ -1,7 +1,7 @@
 import type { JoinError } from '../../net/joinErrors';
 import type { PeerErrorCode } from '../../net/peer';
 
-/** Why connecting failed: the peer connection's own codes, or a quick match with no relay to use. */
+/** Why connecting failed: the peer connection's own codes, or no relay to connect through. */
 export type ConnectFailReason = PeerErrorCode | 'RELAY_UNAVAILABLE';
 
 export type OnlineScreen =

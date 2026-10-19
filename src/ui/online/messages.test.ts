@@ -41,7 +41,7 @@ describe('online messages', () => {
   });
 
   it('connection failures explain themselves', () => {
-    const unreachable = "Couldn't reach your opponent. Their network may block direct connections.";
+    const unreachable = "Couldn't reach your opponent. Check your connection and try again.";
     expect(connectFailedMessage('VERSION_MISMATCH')).toBe('Your opponent is on a different version. Reload to update.');
     expect(connectFailedMessage('CONNECT_TIMEOUT')).toBe(unreachable);
     expect(connectFailedMessage('CONNECT_FAILED')).toBe(unreachable);
@@ -65,9 +65,7 @@ describe('online messages', () => {
     expect(linkLostText(9)).toBe('Connection lost. Waiting for your opponent… 9');
   });
 
-  it('a quick match without a relay says so, and what to do instead', () => {
-    expect(connectFailedMessage('RELAY_UNAVAILABLE')).toBe(
-      "Quick matches can't start right now. Try again soon, or play a private match with a friend.",
-    );
+  it('a match without a relay says so, and what to do instead', () => {
+    expect(connectFailedMessage('RELAY_UNAVAILABLE')).toBe("Online matches can't start right now. Try again in a few minutes.");
   });
 });

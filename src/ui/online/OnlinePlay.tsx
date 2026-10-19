@@ -142,7 +142,7 @@ export function OnlinePlay(props: Props) {
     setScore({ you: 0, them: 0 });
     setLastResult(null);
     pendingResult.current = null;
-    const link = await connectToOpponent({ convex, matchId: match.id, playerId: me, role: match.role, kind: match.kind }).catch((err) => {
+    const link = await connectToOpponent({ convex, matchId: match.id, playerId: me, role: match.role }).catch((err) => {
       console.error('Connecting to the opponent failed', err);
       const reason = err instanceof RelayUnavailableError ? 'RELAY_UNAVAILABLE' : err instanceof PeerError ? err.code : 'CONNECT_FAILED';
       dispatch({ type: 'connectFailed', reason });
