@@ -9,7 +9,7 @@ created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
 version: 0.7.0
-review_approved:     # set by `wi accept`
+review_approved: 2026-10-18
 pr:                  # set by `wi pr`
 tag:                 # set by `wi release`; the tag sits on the branch's last commit
 ---
@@ -102,3 +102,4 @@ WebRTC needs the two peers to exchange an SDP offer and answer (descriptions of 
 - 2026-10-18 — Staging review fixes: signals now expire 2 min after the first (IP retention), are refused and unreadable after the connect timeout, capped at 50 per side; client hello sent on ctrl open (mismatch reaches both sides), candidates stop after connect and their send failures are non-fatal, subscribe after handlers, bad ICE config and non-object hello fail as CONNECT_FAILED, guest answers first offer only, link closes on ICE failure. Open for the user: relay-only quick matches (IP exposure to strangers) and where to disclose it.
 - 2026-10-18 — Test audit (second cycle): HIGH wiring gap fixed (convexSignals + connectToOpponent; host calls markConnected); markConnected now uses the connecting window; 13 surviving mutants re-run and killed. Remaining LOW: unknown channel labels, ICE 'closed' in wrap, send on a non-open channel untested.
 - 2026-10-18 — Staged: verification passed; version 0.6.0 → 0.7.0; no changelog file.
+- 2026-10-18 — Review approved.
