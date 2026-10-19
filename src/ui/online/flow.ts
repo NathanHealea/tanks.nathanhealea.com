@@ -12,7 +12,11 @@ export type OnlineScreen =
   | { name: 'countdown'; round: number }
   | { name: 'playing'; round: number }
   | { name: 'roundResult'; round: number; outcome: 'won' | 'lost' | 'draw'; you: number; them: number }
-  | { name: 'matchResult'; won: boolean; you: number; them: number; rematch: 'none' | 'waiting' };
+  | { name: 'matchResult'; won: boolean; you: number; them: number; rematch: 'none' | 'waiting' }
+  | { name: 'ended'; reason: EndReason };
+
+/** How a match ended other than by score. */
+export type EndReason = 'opponentLeft' | 'opponentWon' | 'noResult' | 'away';
 
 export type OnlineAction =
   | { type: 'quickMatch' }
@@ -32,7 +36,12 @@ export type OnlineAction =
   | { type: 'cancelRematch' }
   | { type: 'rematchFailed' }
   /** Leave match? → Leave: forfeits a live match. */
-  | { type: 'leave' };
+  | { type: 'leave' }
+  | { type: 'opponentLeft' }
+  /** The link went silent and Convex settled the match: won, lost, or no result. */
+  | { type: 'linkLost'; result: 'won' | 'lost' | 'none' }
+  /** This player's tab was hidden too long. */
+  | { type: 'away' };
 
 /** Server and connection work a transition asks the App to start; the reducer itself stays pure. */
 export type OnlineEffect =
@@ -44,7 +53,10 @@ export type OnlineEffect =
   | { type: 'connect' }
   | { type: 'requestRematch' }
   | { type: 'cancelRematch' }
-  | { type: 'leaveMatch' };
+  /** This player leaves: the server is told. */
+  | { type: 'leaveMatch' }
+  /** The other player ended the match: only the connection is closed, since telling the server would forfeit it. */
+  | { type: 'endLink' };
 
 type Result = { screen: OnlineScreen; effects: OnlineEffect[] };
 
@@ -56,6 +68,13 @@ export function reduce(screen: OnlineScreen, action: OnlineAction): Result {
   const live = ['connecting', 'countdown', 'playing', 'roundResult'].includes(screen.name);
   if (action.type === 'leave') return live ? go({ name: 'menu' }, { type: 'leaveMatch' }) : same;
   if (action.type === 'connectFailed' && live) return go({ name: 'connectFailed', reason: action.reason });
+  const inMatch = live && screen.name !== 'connecting';
+  if (inMatch && action.type === 'opponentLeft') return go({ name: 'ended', reason: 'opponentLeft' }, { type: 'endLink' });
+  if (inMatch && action.type === 'linkLost') {
+    const reason = action.result === 'won' ? 'opponentLeft' : action.result === 'lost' ? 'opponentWon' : 'noResult';
+    return go({ name: 'ended', reason }, { type: 'endLink' });
+  }
+  if (inMatch && action.type === 'away') return go({ name: 'ended', reason: 'away' }, { type: 'leaveMatch' });
   switch (screen.name) {
     case 'menu':
       if (action.type === 'quickMatch') return go({ name: 'searching' }, { type: 'joinQueue' });
@@ -111,6 +130,8 @@ export function reduce(screen: OnlineScreen, action: OnlineAction): Result {
       }
       if (action.type === 'back') return go({ name: 'menu' }, { type: 'leaveMatch' });
       return same;
+    case 'ended':
+      return action.type === 'back' ? go({ name: 'menu' }) : same;
     case 'unavailable':
       return same;
   }

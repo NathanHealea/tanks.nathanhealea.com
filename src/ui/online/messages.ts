@@ -1,6 +1,7 @@
 import { ConvexError } from 'convex/values';
 import type { JoinError } from '../../net/joinErrors';
 import type { PeerErrorCode } from '../../net/peer';
+import type { EndReason } from './flow';
 
 const JOIN_ERRORS: Record<JoinError, string> = {
   CODE_NOT_FOUND: 'No match with that code.',
@@ -47,4 +48,19 @@ export function rematchErrorMessage(err: unknown): string {
   if (reason === 'OPPONENT_LEFT') return 'Your opponent has left, so a rematch is not possible.';
   if (reason === 'ALREADY_IN_MATCH') return "You're already in a match.";
   return "Couldn't ask for a rematch. Try again.";
+}
+
+const ENDED: Record<EndReason, string> = {
+  opponentLeft: 'Opponent left. You win.',
+  opponentWon: 'Connection lost. Your opponent wins.',
+  noResult: 'Connection lost. No result.',
+  away: 'You were away too long, so the match went to your opponent.',
+};
+
+export function endedText(reason: EndReason): string {
+  return ENDED[reason];
+}
+
+export function linkLostText(secondsLeft: number): string {
+  return `Connection lost. Waiting for your opponent… ${secondsLeft}`;
 }

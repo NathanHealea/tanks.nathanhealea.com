@@ -4,7 +4,9 @@ import { formatCode } from '../../net/share';
 import {
   colorName,
   connectFailedMessage,
+  endedText,
   joinErrorMessage,
+  linkLostText,
   matchResultText,
   rematchErrorMessage,
   roundResultText,
@@ -50,5 +52,16 @@ describe('online messages', () => {
     expect(rematchErrorMessage(new ConvexError('ALREADY_IN_MATCH'))).toBe("You're already in a match.");
     expect(rematchErrorMessage(new ConvexError('Match is not finished'))).toBe("Couldn't ask for a rematch. Try again.");
     expect(rematchErrorMessage(new Error('network'))).toBe("Couldn't ask for a rematch. Try again.");
+  });
+
+  it('match endings say who won and why', () => {
+    expect(endedText('opponentLeft')).toBe('Opponent left. You win.');
+    expect(endedText('opponentWon')).toBe('Connection lost. Your opponent wins.');
+    expect(endedText('noResult')).toBe('Connection lost. No result.');
+    expect(endedText('away')).toBe('You were away too long, so the match went to your opponent.');
+  });
+
+  it('a lost link counts down while waiting for the opponent', () => {
+    expect(linkLostText(9)).toBe('Connection lost. Waiting for your opponent… 9');
   });
 });

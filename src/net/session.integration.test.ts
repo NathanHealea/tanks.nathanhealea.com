@@ -4,11 +4,13 @@ import type { MatchScore } from '../game/match';
 import { generatePvpMap, roundSeed } from '../game/pvpMaps';
 import { IDLE_INPUT } from '../game/sim';
 import type { GameEvent, PlayerInput, TankState } from '../game/types';
+import { reduce } from '../ui/online/flow';
 import { GuestSession } from './guestSession';
 import { HostSession } from './hostSession';
 import { createLinkPair } from './link';
 import { COUNTDOWN_SECONDS, GuestMatch, HostMatch } from './netMatch';
 import { parseHostMessage, type RoundEndMessage, type RoundStartMessage } from './protocol';
+import { LinkWatch } from './silence';
 
 // 20x14 open floor; P spawns at col 2 and 2 at col 17, both on row 6.
 const OPEN = Array.from({ length: 14 }, (_, r) =>
@@ -214,6 +216,37 @@ describe('networked session', () => {
         winner: 'p1',
       });
       expect(guest.onRoundEnd).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe('bye ends the match immediately', () => {
+    function watchBothEnds() {
+      const [hostLink, guestLink] = createLinkPair();
+      const host = { onHealth: vi.fn(), onLost: vi.fn(), onBye: vi.fn() };
+      const guest = { onHealth: vi.fn(), onLost: vi.fn(), onBye: vi.fn() };
+      return { hostWatch: new LinkWatch(hostLink, host), guestWatch: new LinkWatch(guestLink, guest), host, guest };
+    }
+
+    it('the host hears the guest bye on the next tick', () => {
+      const { guestWatch, host, guest } = watchBothEnds();
+      vi.advanceTimersByTime(3000);
+      expect(host.onBye).not.toHaveBeenCalled();
+
+      guestWatch.bye();
+      vi.advanceTimersByTime(0);
+      expect(host.onBye).toHaveBeenCalledTimes(1);
+
+      vi.advanceTimersByTime(3000);
+      expect(host.onBye).toHaveBeenCalledTimes(1);
+      expect(guest.onBye).not.toHaveBeenCalled();
+      expect(host.onLost).not.toHaveBeenCalled();
+    });
+
+    it('the host flow ends the match as opponent left and closes the link without telling the server', () => {
+      expect(reduce({ name: 'playing', round: 2 }, { type: 'opponentLeft' })).toEqual({
+        screen: { name: 'ended', reason: 'opponentLeft' },
+        effects: [{ type: 'endLink' }],
+      });
     });
   });
 });

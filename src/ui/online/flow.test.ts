@@ -226,3 +226,87 @@ describe('online flow', () => {
     expect(reduce(menu, { type: 'leave' }).screen).toBe(menu);
   });
 });
+
+describe('match outcomes', () => {
+  const live: OnlineScreen[] = [
+    { name: 'countdown', round: 2 },
+    { name: 'playing', round: 2 },
+    { name: 'roundResult', round: 2, outcome: 'won', you: 1, them: 0 },
+  ];
+
+  it('an opponent who leaves mid-match ends it as a win and only closes the link', () => {
+    for (const screen of live) {
+      expect(reduce(screen, { type: 'opponentLeft' })).toEqual({
+        screen: { name: 'ended', reason: 'opponentLeft' },
+        effects: [{ type: 'endLink' }],
+      });
+    }
+  });
+
+  it('a lost link ends the match with the result the server recorded', () => {
+    for (const screen of live) {
+      expect(reduce(screen, { type: 'linkLost', result: 'won' })).toEqual({
+        screen: { name: 'ended', reason: 'opponentLeft' },
+        effects: [{ type: 'endLink' }],
+      });
+      expect(reduce(screen, { type: 'linkLost', result: 'lost' })).toEqual({
+        screen: { name: 'ended', reason: 'opponentWon' },
+        effects: [{ type: 'endLink' }],
+      });
+      expect(reduce(screen, { type: 'linkLost', result: 'none' })).toEqual({
+        screen: { name: 'ended', reason: 'noResult' },
+        effects: [{ type: 'endLink' }],
+      });
+    }
+  });
+
+  it('being away too long ends the match and tells the server this player left', () => {
+    for (const screen of live) {
+      expect(reduce(screen, { type: 'away' })).toEqual({
+        screen: { name: 'ended', reason: 'away' },
+        effects: [{ type: 'leaveMatch' }],
+      });
+    }
+  });
+
+  it('outcome actions are ignored outside a live match', () => {
+    const idle: OnlineScreen[] = [
+      MENU,
+      { name: 'searching' },
+      { name: 'privateWaiting' },
+      { name: 'joining', code: 'HK7Q2M', error: null, busy: false },
+      { name: 'connecting' },
+      { name: 'connectFailed', reason: 'CONNECT_FAILED' },
+      { name: 'matchResult', won: true, you: 3, them: 1, rematch: 'none' },
+      { name: 'ended', reason: 'opponentLeft' },
+      { name: 'unavailable', reason: 'offline' },
+    ];
+    const actions: OnlineAction[] = [{ type: 'opponentLeft' }, { type: 'linkLost', result: 'won' }, { type: 'away' }];
+    for (const screen of idle) {
+      for (const action of actions) {
+        const step = reduce(screen, action);
+        expect(step.screen).toBe(screen);
+        expect(step.effects).toEqual([]);
+      }
+    }
+  });
+
+  it('the ended screen goes back to the menu and ignores everything else', () => {
+    const ended: OnlineScreen = { name: 'ended', reason: 'noResult' };
+    expect(reduce(ended, { type: 'back' })).toEqual({ screen: MENU, effects: [] });
+
+    const others: OnlineAction[] = [
+      { type: 'quickMatch' },
+      { type: 'matched' },
+      { type: 'cancel' },
+      { type: 'leave' },
+      { type: 'requestRematch' },
+      { type: 'roundStart', round: 1 },
+    ];
+    for (const action of others) {
+      const step = reduce(ended, action);
+      expect(step.screen).toBe(ended);
+      expect(step.effects).toEqual([]);
+    }
+  });
+});
