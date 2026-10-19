@@ -22,11 +22,12 @@ export async function hasMatchSlot(ctx: Pick<MutationCtx, 'db'>, now: number): P
   return ((await startsThisHour(ctx, now))?.matches ?? 0) < MATCHES_PER_HOUR;
 }
 
-/** Takes one match start from the current hour; false, with nothing written, when the hour is used up. */
-export async function takeMatchSlot(ctx: Pick<MutationCtx, 'db'>, now: number): Promise<boolean> {
+/**
+ * Counts a match that has connected. Starts are counted here, not when players are paired, so throwaway ids pairing
+ * without connecting cannot use up the hour; a burst of pairs made just under the cap may take it slightly over.
+ */
+export async function recordMatchStart(ctx: Pick<MutationCtx, 'db'>, now: number): Promise<void> {
   const row = await startsThisHour(ctx, now);
-  if ((row?.matches ?? 0) >= MATCHES_PER_HOUR) return false;
   if (row) await ctx.db.patch(row._id, { matches: row.matches + 1 });
   else await ctx.db.insert('relayBudget', { hour: hourOf(now), matches: 1 });
-  return true;
 }

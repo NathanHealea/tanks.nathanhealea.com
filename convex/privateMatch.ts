@@ -3,7 +3,7 @@ import type { Doc } from './_generated/dataModel';
 import { mutation, type MutationCtx } from './_generated/server';
 import { loadMatchAs, requirePlayerId } from './lib/access';
 import { generateCode, normalizeCode } from './lib/codes';
-import { takeMatchSlot } from './lib/relayBudget';
+import { hasMatchSlot } from './lib/relayBudget';
 import { activeMatchFor, queueEntry } from './matchmaking';
 
 /** How long an unused private code works. The host can make a new one at any time (WCAG 2.2.1). */
@@ -76,7 +76,7 @@ export const joinPrivate = mutation({
     if (match.guestId !== undefined) throw new ConvexError('MATCH_FULL');
     if (match.expiresAt === undefined || now > match.expiresAt) throw new ConvexError('CODE_EXPIRED');
     if (await activeMatchFor(ctx, playerId)) throw new ConvexError('ALREADY_IN_MATCH');
-    if (!(await takeMatchSlot(ctx, now))) throw new ConvexError('BUSY');
+    if (!(await hasMatchSlot(ctx, now))) throw new ConvexError('BUSY');
 
     await leaveQueue(ctx, playerId);
     await ctx.db.patch(match._id, { guestId: playerId, guestSeen: now, status: 'connecting' });

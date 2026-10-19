@@ -37,21 +37,27 @@ describe('match starts are capped per hour', () => {
     vi.useRealTimers();
   });
 
-  it('twenty pairings in an hour succeed and the twenty-first leaves both players queued as full', async () => {
+  it('twenty connected matches in an hour fill it and the next pair waits as full', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(HOUR_START + 10 * 60_000);
     const t = convexTest(schema, modules);
     expect(MATCHES_PER_HOUR).toBe(20);
 
+    const hosts: string[] = [];
     for (let i = 0; i < 20; i++) {
-      expect(await t.mutation(api.matchmaking.joinQueue, { playerId: crypto.randomUUID() })).toEqual({
-        status: 'queued',
-        full: false,
-      });
+      const host = crypto.randomUUID();
+      hosts.push(host);
+      expect(await t.mutation(api.matchmaking.joinQueue, { playerId: host })).toEqual({ status: 'queued', full: false });
       expect(await t.mutation(api.matchmaking.joinQueue, { playerId: crypto.randomUUID() })).toEqual({
         status: 'matched',
         full: false,
       });
+    }
+    // Pairing only checks for room; a start is counted when the match connects, so pairs that never do cost nothing.
+    expect(await budget(t)).toEqual([]);
+    const matchIds = await t.run(async (ctx) => (await ctx.db.query('matches').collect()).map((m) => m._id));
+    for (const [i, matchId] of matchIds.entries()) {
+      await t.mutation(api.signaling.markConnected, { playerId: hosts[i], matchId });
     }
     expect(await budget(t)).toEqual([{ hour: H, matches: 20 }]);
 
@@ -96,10 +102,8 @@ describe('match starts are capped per hour', () => {
     expect(queue).toEqual([]);
     expect(matches).toHaveLength(1);
     expect(matches[0]).toMatchObject({ kind: 'quick', hostId: c, guestId: d, status: 'connecting' });
-    expect(await budget(t)).toEqual([
-      { hour: H, matches: 20 },
-      { hour: H + 1, matches: 1 },
-    ]);
+    // Pairing in the new hour only checked for room; the start is counted when this match connects.
+    expect(await budget(t)).toEqual([{ hour: H, matches: 20 }]);
     expect(await t.mutation(api.matchmaking.queueHeartbeat, { playerId: c })).toEqual({ status: 'matched', full: false });
   });
 
@@ -138,7 +142,7 @@ describe('match starts are capped per hour', () => {
     expect(await budget(t)).toEqual([{ hour: H, matches: 20 }]);
   });
 
-  it('joining a private code below the cap takes a slot', async () => {
+  it('joining a private code below the cap uses no start until the match connects', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(HOUR_START + 60_000);
     const t = convexTest(schema, modules);
@@ -147,10 +151,12 @@ describe('match starts are capped per hour', () => {
     const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: host });
     await seedBudget(t, H, 19);
 
-    await t.mutation(api.privateMatch.joinPrivate, { playerId: guest, code });
+    const { matchId } = await t.mutation(api.privateMatch.joinPrivate, { playerId: guest, code });
 
     const matches = await t.run((ctx) => ctx.db.query('matches').collect());
     expect(matches[0]).toMatchObject({ status: 'connecting', guestId: guest });
+    expect(await budget(t)).toEqual([{ hour: H, matches: 19 }]);
+    await t.mutation(api.signaling.markConnected, { playerId: host, matchId });
     expect(await budget(t)).toEqual([{ hour: H, matches: 20 }]);
   });
 
@@ -178,7 +184,7 @@ describe('match starts are capped per hour', () => {
     expect(await budget(t)).toEqual([{ hour: H, matches: 20 }]);
   });
 
-  it('the rematch request that starts the match takes a slot', async () => {
+  it('the rematch request that starts the match uses no start until it connects', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(HOUR_START + 60_000);
     const t = convexTest(schema, modules);
@@ -196,6 +202,9 @@ describe('match starts are capped per hour', () => {
     const { matchId: rematchId } = await t.mutation(api.matches.requestRematch, { playerId: guestId, matchId });
 
     expect(rematchId).not.toBeNull();
+    expect(await budget(t)).toEqual([]);
+    // The rematch swaps roles: the old guest hosts it and reports the connection.
+    await t.mutation(api.signaling.markConnected, { playerId: guestId, matchId: rematchId! });
     expect(await budget(t)).toEqual([{ hour: H, matches: 1 }]);
   });
 
@@ -227,5 +236,20 @@ describe('match starts are capped per hour', () => {
     const staleRow = await t.run((ctx) => ctx.db.insert('queue', { playerId: crypto.randomUUID(), joinedAt: 0, lastSeen: 0 }));
     expect(await t.mutation(api.matchmaking.queueHeartbeat, { playerId: live })).toEqual({ status: 'queued', full: true });
     expect(await t.run((ctx) => ctx.db.get(staleRow))).not.toBeNull();
+  });
+
+  it('a match already paired still connects, and counts, once the hour has filled', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(HOUR_START + 60_000);
+    const t = convexTest(schema, modules);
+    const host = crypto.randomUUID();
+    await t.mutation(api.matchmaking.joinQueue, { playerId: host });
+    await t.mutation(api.matchmaking.joinQueue, { playerId: crypto.randomUUID() });
+    await seedBudget(t, H, 20);
+    const [match] = await t.run((ctx) => ctx.db.query('matches').collect());
+
+    await t.mutation(api.signaling.markConnected, { playerId: host, matchId: match._id });
+    expect((await t.run((ctx) => ctx.db.get(match._id)))?.status).toBe('playing');
+    expect(await budget(t)).toEqual([{ hour: H, matches: 21 }]);
   });
 });

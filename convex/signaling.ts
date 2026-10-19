@@ -3,6 +3,7 @@ import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import { loadMatchAs } from './lib/access';
+import { recordMatchStart } from './lib/relayBudget';
 import { CONNECT_TIMEOUT_MS } from './matchmaking';
 
 /** Far above a real SDP offer or ICE candidate (a few KB), low enough that the table cannot be used as storage. */
@@ -59,6 +60,7 @@ export const markConnected = mutation({
     // Same window as everything else: a match matchmaking already treats as dead must not be revived.
     if (!isConnecting(match, Date.now())) return null;
     await ctx.db.patch(matchId, { status: 'playing' });
+    await recordMatchStart(ctx, Date.now());
     await deleteSignals(ctx, matchId);
     return null;
   },

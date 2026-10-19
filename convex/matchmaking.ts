@@ -1,7 +1,7 @@
 import { ConvexError, v } from 'convex/values';
 import type { Doc } from './_generated/dataModel';
 import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
-import { hasMatchSlot, takeMatchSlot } from './lib/relayBudget';
+import { hasMatchSlot } from './lib/relayBudget';
 import { requirePlayerId, toMatchView, type MatchView } from './lib/access';
 
 /** A queue entry with no heartbeat for this long is treated as a closed tab and never paired. */
@@ -58,10 +58,9 @@ async function pairFromQueue(ctx: MutationCtx, playerId: string, mine: Doc<'queu
     for (const e of stale) await ctx.db.delete(e._id);
     if (stale.length === 0) break;
   }
-  const full = partner !== undefined && !(await takeMatchSlot(ctx, now));
-  if (!partner || full) {
+  if (!partner) {
     if (!mine) await ctx.db.insert('queue', { playerId, joinedAt: now, lastSeen: now });
-    return { status: 'queued', full };
+    return { status: 'queued', full: false };
   }
 
   await ctx.db.delete(partner._id);
