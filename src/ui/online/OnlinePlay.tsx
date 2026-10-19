@@ -70,12 +70,15 @@ export function OnlinePlay(props: Props) {
     props.onSession(null);
   }, []);
 
+  // dispatch is stable so effects and callbacks can hold it; it reaches this render's runEffect, and with it the
+  // current priv and quick hooks, through a ref.
+  const runEffectRef = useRef<(effect: OnlineEffect) => void>(() => {});
   const dispatch = useCallback(
     (action: OnlineAction) => {
       const { screen: next, effects } = reduce(screenRef.current, action);
       screenRef.current = next;
       setScreen(next);
-      for (const effect of effects) runEffect(effect);
+      for (const effect of effects) runEffectRef.current(effect);
     },
     [],
   );
@@ -199,6 +202,7 @@ export function OnlinePlay(props: Props) {
         break;
     }
   }
+  runEffectRef.current = runEffect;
 
   // The server reporting a connecting match is what moves every waiting screen on to connecting.
   useEffect(() => {
