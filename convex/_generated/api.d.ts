@@ -8,7 +8,9 @@
  * @module
  */
 
+import type * as lib_access from "../lib/access.js";
 import type * as lib_ids from "../lib/ids.js";
+import type * as matchmaking from "../matchmaking.js";
 
 import type {
   ApiFromModules,
@@ -17,7 +19,9 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "lib/access": typeof lib_access;
   "lib/ids": typeof lib_ids;
+  matchmaking: typeof matchmaking;
 }>;
 
 /**
