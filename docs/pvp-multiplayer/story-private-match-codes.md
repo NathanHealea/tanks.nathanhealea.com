@@ -9,7 +9,7 @@ created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
 version: 0.6.0
-review_approved:     # set by `wi accept`
+review_approved: 2026-10-18
 pr:                  # set by `wi pr`
 tag:                 # set by `wi release`; the tag sits on the branch's last commit
 ---
@@ -103,3 +103,4 @@ Same backend pieces as `random-matchmaking`: the `matches` table with its `by_co
 - 2026-10-18 — Staging review fixes: HIGH connect timeout now timed from guestSeen (late joins were born dead); joinQueue refuses a host holding a code and useQuickMatch ignores private matches; extendPrivate added for WCAG 2.2.1 (Make a new code does not extend); create errors mapped; cancel/extend scoped to the host's waiting match; share links rewritten with an absolute URL. Item 10 plan updated (Keep this code, expired state, confirm before link join). Open: share codes come from Convex's seeded Math.random; Convex docs do not say whether the seed is unpredictable.
 - 2026-10-18 — Test audit (second cycle): 3 MED gaps (expiry vs connecting, playing-match codes, replacing a live match) and 6 LOWs now covered; all 9 re-run mutants killed. Remaining: hooks untested (declared), joinPrivate check order is pinned only for own-code-vs-full.
 - 2026-10-18 — Staged: verification passed; version 0.5.0 → 0.6.0; no changelog file.
+- 2026-10-18 — Review approved.
