@@ -2,9 +2,9 @@
 type: story
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: private-match-codes
-status: planned      # planned | in-progress | changes-requested | staged | released
+status: in-progress
 branch: story/private-match-codes
-worktree_path:       # set by `wi start`
+worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/story-private-match-codes
 created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
@@ -96,3 +96,4 @@ Same backend pieces as `random-matchmaking`: the `matches` table with its `by_co
 
 - 2026-10-18 — Planned.
 - 2026-10-18 — Plan approved.
+- 2026-10-18 — Started on branch story/private-match-codes from origin/pvp-tank.
