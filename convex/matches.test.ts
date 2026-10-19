@@ -427,4 +427,18 @@ describe('matches', () => {
       endReason: 'connection',
     });
   });
+
+  it('an opponent who has not beaten yet counts from when they arrived', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const t = convexTest(schema, modules);
+    const { matchId, hostId } = await seedPlayingMatch(t);
+    await t.run((ctx) => ctx.db.patch(matchId, { createdAt: 1_000_000 - 60_000, guestSeen: 1_000_000 - 2_000 }));
+    await seedPresence(t, matchId, 'host', 1_000_000);
+    expect(await t.mutation(api.matches.reportLost, { playerId: hostId, matchId })).toEqual({
+      status: 'abandoned',
+      winner: null,
+      endReason: 'connection',
+    });
+  });
 });

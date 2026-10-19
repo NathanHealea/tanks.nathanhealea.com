@@ -149,9 +149,12 @@ export const reportLost = mutation({
   handler: async (ctx, { playerId, matchId }): Promise<Outcome> => {
     const { match, role } = await loadMatchAs(ctx, matchId, playerId);
     if (match.status !== 'playing') return outcomeOf(match);
-    const opponent = await presenceOf(ctx, matchId, other(role));
+    const opponentRole = other(role);
+    const opponent = await presenceOf(ctx, matchId, opponentRole);
+    // Before their first beat lands, an opponent is as fresh as their arrival: a missing row is not a stale one.
+    const arrived = (opponentRole === 'guest' ? match.guestSeen : match.hostSeen) ?? match.createdAt;
     const end: Partial<Doc<'matches'>> =
-      !opponent || Date.now() - opponent.lastSeen > PRESENCE_STALE_MS
+      Date.now() - (opponent?.lastSeen ?? arrived) > PRESENCE_STALE_MS
         ? { status: 'finished', winner: role, endReason: 'timeout' }
         : { status: 'abandoned', endReason: 'connection' };
     await ctx.db.patch(matchId, end);
