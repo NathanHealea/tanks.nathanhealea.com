@@ -2,15 +2,21 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { isMuted, setMuted, unlockAudio } from './audio/sound';
 import { MAX_LIVES } from './game/config';
 import { LEVEL_COUNT, newTankAt } from './game/levels';
-import { LocalSession } from './game/session';
+import { LocalSession, type GameSession } from './game/session';
 import { TANK_STATS } from './game/tanks';
 import { bindDesktop, resetControls } from './input/controls';
 import { Effects } from './render/effects';
 import { LOCAL_PLAYER, Scene, type HudSnapshot } from './render/Scene';
 import { Hud } from './ui/Hud';
 import { TouchControls } from './ui/TouchControls';
+import { convexClient } from './net/client';
+import { readJoinParam } from './net/share';
+import { OnlinePlay } from './ui/online/OnlinePlay';
 
-type Screen = 'title' | 'playing' | 'paused' | 'popped' | 'cleared' | 'gameover' | 'victory';
+// Read once at load: readJoinParam also removes the code from the address bar.
+const joinCode = typeof window !== 'undefined' ? readJoinParam(window.location, window.history) : null;
+
+type Screen = 'title' | 'online' | 'playing' | 'paused' | 'popped' | 'cleared' | 'gameover' | 'victory';
 
 const isTouch = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
 
@@ -66,7 +72,11 @@ function ControlsHelp() {
 }
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>('title');
+  const [screen, setScreen] = useState<Screen>(joinCode ? 'online' : 'title');
+  const [onlineSession, setOnlineSession] = useState<GameSession | null>(null);
+  const [onlineKey, setOnlineKey] = useState(0);
+  const [online, setOnline] = useState(() => navigator.onLine);
+  const onlineEscape = useRef<(() => void) | null>(null);
   const [level, setLevel] = useState(0);
   const [lives, setLives] = useState(MAX_LIVES);
   const [session, setSession] = useState(() => new LocalSession(0, [LOCAL_PLAYER], newSeed()));
@@ -93,6 +103,8 @@ export default function App() {
   );
 
   const togglePause = useCallback(() => {
+    // In a match there is no pause: Escape opens Leave match? instead.
+    if (screenRef.current === 'online') return onlineEscape.current?.();
     if (screenRef.current === 'playing') setScreen('paused');
     else if (screenRef.current === 'paused') {
       resetControls();
@@ -104,6 +116,36 @@ export default function App() {
     if (!surface.current) return;
     return bindDesktop(surface.current, togglePause);
   }, [togglePause]);
+
+  useEffect(() => {
+    const update = () => setOnline(navigator.onLine);
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    return () => {
+      window.removeEventListener('online', update);
+      window.removeEventListener('offline', update);
+    };
+  }, []);
+
+  const showOnlineSession = useCallback(
+    (next: GameSession | null) => {
+      resetControls();
+      effects.reset();
+      setOnlineSession(next);
+      if (next) setOnlineKey((k) => k + 1);
+    },
+    [effects],
+  );
+
+  const openOnline = () => {
+    unlockAudio();
+    setScreen('online');
+  };
+
+  const leaveOnline = useCallback(() => {
+    setOnlineSession(null);
+    setScreen('title');
+  }, []);
 
   useEffect(() => {
     const onHide = () => {
@@ -137,20 +179,33 @@ export default function App() {
     setMutedState(!muted);
   };
 
-  const inGame = screen !== 'title';
+  const inGame = screen !== 'title' && screen !== 'online';
+  const showingOnline = screen === 'online' && onlineSession !== null;
 
   return (
     <div className="app">
       <div className="surface" ref={surface}>
-        <Scene
-          session={session}
-          sessionKey={sessionKey}
-          effects={effects}
-          paused={screen !== 'playing'}
-          onHud={setHud}
-          onOutcome={onOutcome}
-          onBoardTop={setBoardTop}
-        />
+        {showingOnline ? (
+          <Scene
+            session={onlineSession}
+            sessionKey={1_000_000 + onlineKey}
+            effects={effects}
+            paused={false}
+            onHud={setHud}
+            onOutcome={() => {}}
+            onBoardTop={setBoardTop}
+          />
+        ) : (
+          <Scene
+            session={session}
+            sessionKey={sessionKey}
+            effects={effects}
+            paused={screen !== 'playing'}
+            onHud={setHud}
+            onOutcome={onOutcome}
+            onBoardTop={setBoardTop}
+          />
+        )}
       </div>
       {isTouch && screen === 'playing' && <TouchControls />}
       {inGame && (
@@ -167,9 +222,48 @@ export default function App() {
       )}
 
       {screen === 'title' && (
-        <Overlay title="Tanks" action="Start" onAction={() => startLevel(0)}>
-          <p>Pop every enemy tank. Shots bounce once. You carry two shells and two mines, then reload.</p>
-          <ControlsHelp />
+        <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="overlay-title">
+          <div className="overlay-card">
+            <h1 id="overlay-title">Tanks</h1>
+            <p>Pop every enemy tank. Shots bounce once. You carry two shells and two mines, then reload.</p>
+            <ControlsHelp />
+            <div className="button-column">
+              <button type="button" className="primary" onClick={() => startLevel(0)} autoFocus>
+                Campaign
+              </button>
+              {convexClient && (
+                <>
+                  <button type="button" className="primary" onClick={openOnline} disabled={!online} aria-describedby={online ? undefined : 'offline-note'}>
+                    Play online
+                  </button>
+                  {!online && (
+                    <p id="offline-note" className="online-note">
+                      Online play needs an internet connection.
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {screen === 'online' && convexClient && (
+        <OnlinePlay
+          joinCode={joinCode}
+          onExit={leaveOnline}
+          onSession={showOnlineSession}
+          hud={hud}
+          boardTop={boardTop}
+          muted={muted}
+          onToggleMute={toggleMute}
+          registerEscape={(handler) => {
+            onlineEscape.current = handler;
+          }}
+        />
+      )}
+      {screen === 'online' && !convexClient && (
+        <Overlay title="Online play unavailable" action="Play the campaign" onAction={() => setScreen('title')}>
+          <p>Online play is not set up on this site.</p>
         </Overlay>
       )}
       {screen === 'paused' && (
