@@ -143,8 +143,8 @@ button:focus-visible {
 .overlay {
   position: fixed;
   inset: 0;
-  display: grid;
-  place-items: center;
+  display: flex;
+  overflow-y: auto;
   background: rgba(20, 17, 14, 0.45);
   padding: 16px;
 }
@@ -156,6 +156,8 @@ button:focus-visible {
   padding: 24px 28px;
   max-width: 440px;
   width: 100%;
+  /* Auto margins center the card but, unlike place-items, keep its top reachable when it is taller than the screen. */
+  margin: auto;
   text-align: center;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
 }
