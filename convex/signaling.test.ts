@@ -25,7 +25,7 @@ async function seedMatch(t: Tester, status: Doc<'matches'>['status'] = 'connecti
   const matchId = await t.run((ctx) =>
     ctx.db.insert('matches', {
       kind: 'quick', hostId, guestId, status, seed: 1, round: 0, hostScore: 0, guestScore: 0,
-      createdAt: 1_000_000, hostSeen: 1_000_000, guestSeen: 1_000_000,
+      createdAt: Date.now(), hostSeen: Date.now(), guestSeen: Date.now(),
     }),
   );
   return { matchId, hostId, guestId };
@@ -154,5 +154,50 @@ describe('signaling', () => {
 
     expect(await t.mutation(api.signaling.markConnected, { playerId: hostId, matchId })).toBeNull();
     expect((await getMatch())?.status).toBe('playing');
+  });
+
+  it('every signal for a match is deleted two minutes after the first, connected or not', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const t = convexTest(schema, modules);
+    const { matchId, hostId, guestId } = await seedMatch(t);
+    await t.mutation(api.signaling.sendSignal, { playerId: hostId, matchId, kind: 'offer', payload: '{}' });
+    await t.mutation(api.signaling.sendSignal, { playerId: guestId, matchId, kind: 'answer', payload: '{}' });
+
+    vi.advanceTimersByTime(119_000);
+    await t.finishInProgressScheduledFunctions();
+    expect(await t.run((ctx) => ctx.db.query('signals').collect())).toHaveLength(2);
+
+    vi.advanceTimersByTime(1_000);
+    await t.finishInProgressScheduledFunctions();
+    expect(await t.run((ctx) => ctx.db.query('signals').collect())).toHaveLength(0);
+  });
+
+  it('a side cannot send more than 50 signals', async () => {
+    const t = convexTest(schema, modules);
+    const { matchId, hostId } = await seedMatch(t);
+    for (let i = 0; i < 50; i++) {
+      await t.mutation(api.signaling.sendSignal, { playerId: hostId, matchId, kind: 'ice', payload: String(i) });
+    }
+    await expectConvexErrorAsync(
+      t.mutation(api.signaling.sendSignal, { playerId: hostId, matchId, kind: 'ice', payload: 'one more' }),
+      'Too many signals',
+    );
+    expect(await t.run((ctx) => ctx.db.query('signals').collect())).toHaveLength(50);
+  });
+
+  it('after the connect timeout, nobody can send or read signals', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const t = convexTest(schema, modules);
+    const { matchId, hostId, guestId } = await seedMatch(t);
+    await t.mutation(api.signaling.sendSignal, { playerId: hostId, matchId, kind: 'offer', payload: '{}' });
+
+    vi.setSystemTime(1_000_000 + 60_001);
+    expect(await t.query(api.signaling.inbox, { playerId: guestId, matchId })).toEqual([]);
+    await expectConvexErrorAsync(
+      t.mutation(api.signaling.sendSignal, { playerId: guestId, matchId, kind: 'answer', payload: '{}' }),
+      'Match is not connecting',
+    );
   });
 });
