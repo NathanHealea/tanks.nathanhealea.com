@@ -292,6 +292,18 @@ function separateTanks(s: GameState): void {
 
 function updateOutcome(s: GameState): void {
   if (s.outcome) return;
+  if (s.mode === 'pvp') {
+    // Checked after every hit and blast in the tick, so two tanks popped on one tick read as a draw, not a win.
+    const alive = s.tanks.filter((t) => t.alive);
+    if (alive.length === 1) {
+      s.outcome = 'won';
+      s.winner = alive[0].id;
+    } else if (alive.length === 0) {
+      s.outcome = 'draw';
+    }
+    if (s.outcome) s.outcomeTime = s.time;
+    return;
+  }
   const playersAlive = s.tanks.some((t) => t.team === 0 && t.alive);
   const enemiesAlive = s.tanks.some((t) => t.team === 1 && t.alive);
   if (!playersAlive) s.outcome = 'lost';
