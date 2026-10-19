@@ -54,6 +54,7 @@ export function reduce(screen: OnlineScreen, action: OnlineAction): Result {
   const same: Result = { screen, effects: [] };
   const live = ['connecting', 'countdown', 'playing', 'roundResult'].includes(screen.name);
   if (action.type === 'leave') return live ? go({ name: 'menu' }, { type: 'leaveMatch' }) : same;
+  if (action.type === 'connectFailed' && live) return go({ name: 'connectFailed', reason: action.reason });
   switch (screen.name) {
     case 'menu':
       if (action.type === 'quickMatch') return go({ name: 'searching' }, { type: 'joinQueue' });
@@ -77,7 +78,6 @@ export function reduce(screen: OnlineScreen, action: OnlineAction): Result {
       if (action.type === 'matched') return go({ name: 'connecting' }, { type: 'connect' });
       return same;
     case 'connecting':
-      if (action.type === 'connectFailed') return go({ name: 'connectFailed', reason: action.reason });
       if (action.type === 'roundStart') return go({ name: 'countdown', round: action.round });
       return same;
     case 'connectFailed':

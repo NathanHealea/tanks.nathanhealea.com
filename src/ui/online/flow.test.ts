@@ -132,6 +132,20 @@ describe('online flow transitions', () => {
     });
   });
 
+  it('a connection lost mid-match goes to the failure screen', () => {
+    const live: OnlineScreen[] = [
+      { name: 'countdown', round: 2 },
+      { name: 'playing', round: 2 },
+      { name: 'roundResult', round: 2, outcome: 'won', you: 1, them: 0 },
+    ];
+    for (const screen of live) {
+      expect(reduce(screen, { type: 'connectFailed', reason: 'CONNECT_FAILED' })).toEqual({
+        screen: { name: 'connectFailed', reason: 'CONNECT_FAILED' },
+        effects: [],
+      });
+    }
+  });
+
   it('stays on the menu on back; the App closes the online flow', () => {
     expect(reduce(MENU, { type: 'back' })).toEqual({ screen: MENU, effects: [] });
   });
