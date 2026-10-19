@@ -34,8 +34,9 @@ export const joinQueue = mutation({
     let partner: Doc<'queue'> | undefined;
     for (let page = 0; page < PAIRING_PAGES && !partner; page++) {
       const head = await ctx.db.query('queue').withIndex('by_joined').take(PAIRING_SCAN);
-      const stale = head.filter((e) => now - e.lastSeen > QUEUE_STALE_MS);
-      partner = head.find((e) => e.playerId !== playerId && now - e.lastSeen <= QUEUE_STALE_MS);
+      const isLive = (e: Doc<'queue'>) => now - e.lastSeen <= QUEUE_STALE_MS;
+      const stale = head.filter((e) => !isLive(e));
+      partner = head.find((e) => e.playerId !== playerId && isLive(e));
       for (const e of stale) await ctx.db.delete(e._id);
       if (stale.length === 0) break;
     }

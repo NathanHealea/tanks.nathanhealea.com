@@ -313,4 +313,54 @@ describe('matchmaking', () => {
     expect(await t.query(api.matchmaking.myMatch, { playerId: b })).toBeNull();
     expect(await t.mutation(api.matchmaking.joinQueue, { playerId: b })).toEqual({ status: 'queued' });
   });
+
+  it.each(['playing', 'waiting'] as const)('a %s match older than a minute still counts as active', async (status) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const t = convexTest(schema, modules);
+    const a = crypto.randomUUID();
+    await t.run(async (ctx) => {
+      await ctx.db.insert('matches', {
+        kind: 'quick', hostId: a, guestId: crypto.randomUUID(), status, seed: 1, round: 0,
+        hostScore: 0, guestScore: 0, createdAt: 1_000_000 - 120_000, hostSeen: 1_000_000, guestSeen: 1_000_000,
+      });
+    });
+
+    expect(await t.query(api.matchmaking.myMatch, { playerId: a })).not.toBeNull();
+    expect(await t.mutation(api.matchmaking.joinQueue, { playerId: a })).toEqual({ status: 'matched' });
+    const { matches, queue } = await t.run(async (ctx) => ({
+      matches: await ctx.db.query('matches').collect(),
+      queue: await ctx.db.query('queue').collect(),
+    }));
+    expect(matches).toHaveLength(1);
+    expect(queue).toHaveLength(0);
+  });
+
+  it('an entry seen exactly 30 s ago is paired; one more millisecond and it is swept', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const t = convexTest(schema, modules);
+    const edge = crypto.randomUUID();
+    const past = crypto.randomUUID();
+    await t.run((ctx) => ctx.db.insert('queue', { playerId: edge, joinedAt: 1, lastSeen: 1_000_000 - 30_000 }));
+    expect(await t.mutation(api.matchmaking.joinQueue, { playerId: crypto.randomUUID() })).toEqual({ status: 'matched' });
+
+    await t.run((ctx) => ctx.db.insert('queue', { playerId: past, joinedAt: 1, lastSeen: 1_000_000 - 30_001 }));
+    const caller = crypto.randomUUID();
+    expect(await t.mutation(api.matchmaking.joinQueue, { playerId: caller })).toEqual({ status: 'queued' });
+    const queue = await t.run((ctx) => ctx.db.query('queue').collect());
+    expect(queue.map((row) => row.playerId)).toEqual([caller]);
+  });
+
+  it('rejoining while queued refreshes lastSeen and keeps joinedAt', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const t = convexTest(schema, modules);
+    const a = crypto.randomUUID();
+    await t.mutation(api.matchmaking.joinQueue, { playerId: a });
+    vi.setSystemTime(1_020_000);
+    await t.mutation(api.matchmaking.joinQueue, { playerId: a });
+    const [row] = await t.run((ctx) => ctx.db.query('queue').collect());
+    expect(row).toMatchObject({ playerId: a, joinedAt: 1_000_000, lastSeen: 1_020_000 });
+  });
 });
