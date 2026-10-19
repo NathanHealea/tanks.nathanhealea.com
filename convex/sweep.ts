@@ -3,7 +3,7 @@ import { internalMutation, type MutationCtx } from './_generated/server';
 
 /** Rows each rule handles per run; anything left waits a minute for the next run (R7). */
 export const SWEEP_BATCH = 500;
-/** A queue entry, waiting host or player not heard from for this long has gone. */
+/** A queue entry or player not heard from for this long has gone. */
 export const IDLE_MS = 60_000;
 /**
  * A waiting host is given longer: sharing the code means switching to another app, where the browser throttles or

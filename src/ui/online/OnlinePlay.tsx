@@ -357,10 +357,11 @@ export function OnlinePlay(props: Props) {
     [announce],
   );
 
+  // Also covers a code the sweep abandoned while its host was away: any code that stops being reported has ended.
   useEffect(() => {
     if (screen.name !== 'privateWaiting' || priv.match) return;
     const { expiresAt } = lastCode.current;
-    if (expiresAt !== undefined && Date.now() > expiresAt) expire(expiresAt);
+    if (expiresAt !== undefined) expire(expiresAt);
   }, [screen.name, priv.match, expire]);
 
   useEffect(() => {
