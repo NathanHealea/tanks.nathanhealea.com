@@ -2,7 +2,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { useRef, useState } from 'react';
 import { Plane, Raycaster, Vector2, Vector3 } from 'three';
 import { BULLET, OUTCOME_DELAY } from '../game/config';
-import type { LocalSession } from '../game/session';
+import type { GameSession } from '../game/session';
 import type { GameState } from '../game/types';
 import { clearActions, controls, readInput } from '../input/controls';
 import { AimLine } from './AimLine';
@@ -25,7 +25,7 @@ export interface HudSnapshot {
 }
 
 interface Props {
-  session: LocalSession;
+  session: GameSession;
   effects: Effects;
   paused: boolean;
   onHud: (hud: HudSnapshot) => void;
@@ -38,8 +38,8 @@ const raycaster = new Raycaster();
 const ndc = new Vector2();
 const hit = new Vector3();
 
-function hudOf(s: GameState): HudSnapshot {
-  const me = s.tanks.find((t) => t.id === LOCAL_PLAYER);
+function hudOf(s: GameState, localPlayerId: string): HudSnapshot {
+  const me = s.tanks.find((t) => t.id === localPlayerId);
   return {
     shots: me?.shots ?? 0,
     mines: me?.mines ?? 0,
@@ -60,9 +60,9 @@ function GameLoop({ session, effects, paused, onHud, onOutcome, onWallsChanged }
       raycaster.setFromCamera(ndc.set(controls.pointerNdc.x, controls.pointerNdc.y), camera);
       if (raycaster.ray.intersectPlane(aimPlane, hit)) controls.aimPoint = { x: hit.x, z: hit.z };
     }
-    const me = s.tanks.find((t) => t.id === LOCAL_PLAYER);
+    const me = s.tanks.find((t) => t.id === session.localPlayerId);
     const input = readInput(me, dt);
-    const events = session.advance(dt, { [LOCAL_PLAYER]: input });
+    const events = session.advance(dt, input);
     if (session.ticksLastAdvance > 0) clearActions();
     effects.handle(events);
     if (events.some((e) => e.type === 'wallBreak')) onWallsChanged();
@@ -70,7 +70,7 @@ function GameLoop({ session, effects, paused, onHud, onOutcome, onWallsChanged }
     hudClock.current += dt;
     if (hudClock.current >= HUD_INTERVAL || events.length > 0) {
       hudClock.current = 0;
-      onHud(hudOf(s));
+      onHud(hudOf(s, session.localPlayerId));
     }
     if (s.outcome && !reported.current && s.time - s.outcomeTime >= OUTCOME_DELAY) {
       reported.current = true;
@@ -84,7 +84,7 @@ function World(props: Props) {
   const { session, effects } = props;
   const [wallVersion, setWallVersion] = useState(0);
   const getState = () => session.state;
-  const getMe = () => session.state.tanks.find((t) => t.id === LOCAL_PLAYER);
+  const getMe = () => session.state.tanks.find((t) => t.id === session.localPlayerId);
 
   return (
     <>
