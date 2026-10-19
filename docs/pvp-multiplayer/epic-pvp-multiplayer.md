@@ -86,7 +86,7 @@ Status column by matching the Slug column, so keep slugs exact.
 | 2 | task | convex-backend-setup | Add Convex backend and client wiring | R9 | 1 | released |
 | 3 | story | player-identity | Anonymous per-load player identity | R1, R11 | 2 | released |
 | 4 | story | pvp-sim-rules | Two-player PvP rules in the simulation | R6, R9 | 1 | released |
-| 5 | story | pvp-map-generator | Random symmetric PvP arena generator | R5, R9 | 1, 4 | planned |
+| 5 | story | pvp-map-generator | Random symmetric PvP arena generator | R5, R9 | 1, 4 | released |
 | 6 | story | random-matchmaking | Random matchmaking queue | R2, R11 | 2, 3 | planned |
 | 7 | story | private-match-codes | Private matches with share codes and links | R3, R11 | 2, 3 | planned |
 | 8 | story | webrtc-connection | Peer-to-peer connection over Convex signaling | R4, R11 | 6 | planned |
