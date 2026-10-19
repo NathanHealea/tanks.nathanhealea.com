@@ -78,12 +78,12 @@ Run a live PvP match over the peer link. The host's browser runs the real simula
 
 ## Implementation plan
 
-1. [ ] Extract a `GameSession` interface, make `LocalSession` implement it, and pass `localPlayerId` into `Scene` instead of the `LOCAL_PLAYER` constant — touches `src/game/session.ts`, `src/render/Scene.tsx`, `src/App.tsx` — tests T11
-2. [ ] Add the protocol module with validation — touches `src/net/protocol.ts`, `src/net/protocol.test.ts` — tests T1
-3. [ ] Add `HostSession`: stepping, input counters, snapshots — touches `src/net/hostSession.ts`, `src/net/hostSession.test.ts` — tests T2, T3, T4
-4. [ ] Add `GuestSession`: interpolation, event de-duplication, local turret — touches `src/net/guestSession.ts`, `src/net/guestSession.test.ts` — tests T5, T6, T7
-5. [ ] Add the round cycle to both sessions and the end-to-end tests — touches `src/net/hostSession.ts`, `src/net/guestSession.ts`, `src/net/session.integration.test.ts` — tests T8, T9
-6. [ ] Add `reportRound` and call it from the host — touches `convex/matches.ts`, `convex/matches.test.ts`, `src/net/hostSession.ts` — tests T10
+1. [x] Extract a `GameSession` interface, make `LocalSession` implement it, and pass `localPlayerId` into `Scene` instead of the `LOCAL_PLAYER` constant — touches `src/game/session.ts`, `src/render/Scene.tsx`, `src/App.tsx` — tests T11
+2. [x] Add the protocol module with validation — touches `src/net/protocol.ts`, `src/net/protocol.test.ts` — tests T1
+3. [x] Add `HostSession`: stepping, input counters, snapshots — touches `src/net/hostSession.ts`, `src/net/hostSession.test.ts` — tests T2, T3, T4
+4. [x] Add `GuestSession`: interpolation, event de-duplication, local turret — touches `src/net/guestSession.ts`, `src/net/guestSession.test.ts` — tests T5, T6, T7
+5. [x] Add the round cycle to both sessions and the end-to-end tests — touches `src/net/hostSession.ts`, `src/net/guestSession.ts`, `src/net/session.integration.test.ts` — tests T8, T9
+6. [x] Add `reportRound` and call it from the host — touches `convex/matches.ts`, `convex/matches.test.ts`, `src/net/hostSession.ts` — tests T10
 
 **Must not change:** `step()`, `PlayerInput`, `GameEvent` shapes; campaign behavior.
 
@@ -103,3 +103,4 @@ Run a live PvP match over the peer link. The host's browser runs the real simula
 - 2026-10-18 — Planned.
 - 2026-10-18 — Plan approved.
 - 2026-10-18 — Started on branch story/host-authoritative-netcode from origin/pvp-tank.
+- 2026-10-18 — Steps 2-3 built test-first. Mutation checks: 12 of 13 killed; the survivor (re-applying the host's own fire on every tick of one frame) is equivalent because a frame is capped at 6 ticks and the fire cooldown is 12. Stopped for user review of step 3 (high-risk).
