@@ -125,7 +125,8 @@ export function OnlinePlay(props: Props) {
         dispatch({ type: 'roundEnd', round, outcome, you, them });
       }
     };
-    link.onClose(() => {
+    // Released in dispose, before a rematch closes this link, so its close is not taken for a lost connection.
+    const offClose = link.onClose(() => {
       if (['connecting', 'countdown', 'playing', 'roundResult'].includes(screenRef.current.name)) {
         announce('Connection to your opponent was lost.');
         endConnection();
@@ -141,7 +142,14 @@ export function OnlinePlay(props: Props) {
         onMatchEnd: () => {},
         reportRound: reportRound(match.id),
       });
-      matchRef.current = { id: match.id, link, dispose: () => host.dispose() };
+      matchRef.current = {
+        id: match.id,
+        link,
+        dispose: () => {
+          offClose();
+          host.dispose();
+        },
+      };
       host.start();
     } else {
       setLocalPlayer('p2');
@@ -151,7 +159,14 @@ export function OnlinePlay(props: Props) {
           endRound(m.result === null ? 'draw' : m.result === 'p2' ? 'won' : 'lost', m.wins.p2, m.wins.p1, m.round, m.winner !== null),
         onMatchEnd: () => {},
       });
-      matchRef.current = { id: match.id, link, dispose: () => guest.dispose() };
+      matchRef.current = {
+        id: match.id,
+        link,
+        dispose: () => {
+          offClose();
+          guest.dispose();
+        },
+      };
     }
   };
 
