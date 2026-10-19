@@ -113,6 +113,7 @@ export function OnlinePlay(props: Props) {
     endConnection();
     setScore({ you: 0, them: 0 });
     setLastResult(null);
+    pendingResult.current = null;
     const link = await connectToOpponent({ convex, matchId: match.id, playerId: me, role: match.role }).catch((err) => {
       console.error('Connecting to the opponent failed', err);
       dispatch({ type: 'connectFailed', reason: err instanceof PeerError ? err.code : 'CONNECT_FAILED' });
@@ -304,6 +305,11 @@ export function OnlinePlay(props: Props) {
   }, [screen, announce]);
 
   const inMatch = ['countdown', 'playing', 'roundResult'].includes(screen.name);
+
+  // A match that ends or drops with Leave match? open must not bring it back at the next match's countdown.
+  useEffect(() => {
+    if (!inMatch) setLeaveOpen(false);
+  }, [inMatch]);
 
   useEffect(() => {
     props.registerEscape(() => {

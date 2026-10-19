@@ -209,18 +209,21 @@ export function JoinWithCode(props: {
   const [typed, setTyped] = useState(props.initialCode ? formatCode(props.initialCode) : '');
   const inputId = useId();
   const hintId = useId();
+  const noticeId = useId();
   const errorId = useId();
   const [formatError, setFormatError] = useState(false);
+  // Counts rejected submits, so the same format error is announced and refocused each time.
+  const [rejected, setRejected] = useState(0);
   const message = formatError ? "That isn't a match code." : props.error ? joinErrorMessage(props.error) : null;
 
   const input = useRef<HTMLInputElement>(null);
   const { announce } = props;
-  // Focus returns to the field so its error description is read with it.
+  // Moving focus to the field reads the error with it; announcing as well would read it twice.
   useEffect(() => {
     if (!message) return;
-    announce(message);
-    input.current?.focus();
-  }, [message, announce]);
+    if (document.activeElement === input.current) announce(message);
+    else input.current?.focus();
+  }, [message, rejected, announce]);
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -228,12 +231,15 @@ export function JoinWithCode(props: {
     const code = normalizeCode(typed);
     setFormatError(!code);
     if (code) props.onSubmit(code);
+    else setRejected((n) => n + 1);
   };
 
   return (
     <Card title={props.fromLink && props.initialCode ? `Join ${formatCode(props.initialCode)}?` : 'Join with code'}>
       {/* A join link skips the online menu, so the person about to share their IP address reads it here. */}
-      <p className="online-note">{SHARING_NOTICE}</p>
+      <p id={noticeId} className="online-note">
+        {SHARING_NOTICE}
+      </p>
       <form onSubmit={submit}>
         <label htmlFor={inputId}>Match code</label>
         <p id={hintId} className="online-note">
@@ -261,7 +267,13 @@ export function JoinWithCode(props: {
         )}
         <div className="button-column">
           {/* aria-disabled rather than disabled, so focus is not dropped from the button while joining. */}
-          <button type="submit" className="primary" aria-disabled={props.busy} autoFocus={props.fromLink}>
+          <button
+            type="submit"
+            className="primary"
+            aria-disabled={props.busy}
+            autoFocus={props.fromLink}
+            aria-describedby={props.fromLink ? noticeId : undefined}
+          >
             {props.busy ? 'Joining…' : 'Join'}
           </button>
           <button type="button" className="secondary" onClick={props.onBack}>
