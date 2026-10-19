@@ -187,6 +187,82 @@ describe('QuickMatch', () => {
   });
 });
 
+describe('QuickMatch edge cases', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('a match that arrives before join resolves starts no heartbeats', async () => {
+    vi.useFakeTimers();
+    let resolveJoin!: (v: { status: 'queued' }) => void;
+    const server = { ...fakeServerQueued(), join: vi.fn(() => new Promise<{ status: 'queued' }>((r) => (resolveJoin = r))) };
+    const quick = new QuickMatch(server, () => {});
+    const started = quick.start();
+    quick.matched();
+    resolveJoin({ status: 'queued' });
+    await started;
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(server.heartbeat).not.toHaveBeenCalled();
+    expect(quick.state).toBe('matched');
+  });
+
+  it('ended does nothing while searching', async () => {
+    const server = fakeServerQueued();
+    const quick = new QuickMatch(server, () => {});
+    await quick.start();
+    quick.ended();
+    expect(quick.state).toBe('searching');
+    await quick.cancel();
+    expect(server.leave).toHaveBeenCalledTimes(1);
+  });
+
+  it('a match already running when the controller is created shows as matched', () => {
+    const states: QuickMatchState[] = [];
+    const quick = new QuickMatch(fakeServerQueued(), (s) => states.push(s));
+    quick.matched();
+    expect(quick.state).toBe('matched');
+    expect(states).toEqual(['matched']);
+  });
+
+  it('a player can retry after a failed join', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const server = {
+      ...fakeServerQueued(),
+      join: vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue({ status: 'queued' }),
+    };
+    const quick = new QuickMatch(server, () => {});
+    await quick.start();
+    expect(quick.state).toBe('error');
+    await quick.start();
+    expect(quick.state).toBe('searching');
+    expect(server.join).toHaveBeenCalledTimes(2);
+    quick.dispose();
+    errors.mockRestore();
+  });
+
+  it('a stale join failure does not overwrite a newer search', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    let rejectFirst!: (err: Error) => void;
+    const server = {
+      ...fakeServerQueued(),
+      join: vi
+        .fn()
+        .mockImplementationOnce(() => new Promise((_, reject) => (rejectFirst = reject)))
+        .mockResolvedValue({ status: 'queued' }),
+    };
+    const quick = new QuickMatch(server, () => {});
+    const first = quick.start();
+    await quick.cancel();
+    await quick.start();
+    rejectFirst(new Error('late'));
+    await first;
+    expect(quick.state).toBe('searching');
+    await quick.cancel();
+    expect(server.leave).toHaveBeenCalledTimes(2);
+    errors.mockRestore();
+  });
+});
+
 function fakeServerQueued() {
   return {
     join: vi.fn().mockResolvedValue({ status: 'queued' as const }),

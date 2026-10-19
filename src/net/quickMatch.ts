@@ -45,6 +45,8 @@ export class QuickMatch {
   }
 
   matched(): void {
+    // The match can arrive before join() resolves; invalidate that join so it cannot start heartbeats afterwards.
+    this.search++;
     this.stopHeartbeats();
     if (this.state !== 'matched') this.set('matched');
   }
