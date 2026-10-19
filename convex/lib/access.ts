@@ -31,7 +31,7 @@ export function roleIn(match: Doc<'matches'>, playerId: string): Role {
   throw new ConvexError('Not in this match');
 }
 
-/** Checks the id before reading, so a malformed id cannot be used to probe which match ids exist. */
+/** Validates the id before any read, so every match function rejects a malformed id the same way. */
 export async function loadMatchAs(
   ctx: Pick<QueryCtx, 'db'>,
   matchId: Id<'matches'>,
