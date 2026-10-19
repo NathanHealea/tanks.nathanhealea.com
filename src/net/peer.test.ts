@@ -172,4 +172,151 @@ describe('connectPeer', () => {
     const links = (await Promise.race([both, timeout])) as Awaited<typeof both>;
     for (const link of links) link.close();
   });
+
+  function lateStateGuest(rtc: ReturnType<typeof createFakeRtcPair>) {
+    return (config: RTCConfiguration) => {
+      const pc = rtc.createGuest(config);
+      let handler: ((event: RTCDataChannelEvent) => void) | null = null;
+      Object.defineProperty(pc, 'ondatachannel', {
+        get: () => handler,
+        set: (h: (event: RTCDataChannelEvent) => void) => {
+          handler = (event) => (event.channel.label === 'state' ? setTimeout(() => h(event), 30) : h(event));
+        },
+      });
+      return pc;
+    };
+  }
+
+  it('a version mismatch reaches both sides even when one opens late', async () => {
+    const rtc = createFakeRtcPair();
+    const bus = createSignalBus();
+    const both = Promise.allSettled([
+      connectPeer({ role: 'host', signals: bus.host, iceServers: ICE_SERVERS, createPeerConnection: rtc.createHost }),
+      connectPeer({
+        role: 'guest', signals: bus.guest, iceServers: ICE_SERVERS, createPeerConnection: lateStateGuest(rtc),
+        protocolVersion: PROTOCOL_VERSION + 1,
+      }),
+    ]);
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('a side waited for the timeout')), 1_000));
+    const outcomes = (await Promise.race([both, timeout])) as PromiseSettledResult<unknown>[];
+    for (const outcome of outcomes) {
+      expect((outcome as PromiseRejectedResult).reason).toMatchObject({ code: 'VERSION_MISMATCH' });
+    }
+  });
+
+  it('stops sending ICE candidates once connected', async () => {
+    const rtc = createFakeRtcPair();
+    const bus = createSignalBus();
+    const links = await Promise.all([
+      connectPeer({ role: 'host', signals: bus.host, iceServers: ICE_SERVERS, createPeerConnection: rtc.createHost }),
+      connectPeer({ role: 'guest', signals: bus.guest, iceServers: ICE_SERVERS, createPeerConnection: rtc.createGuest }),
+    ]);
+    expect(rtc.host.onicecandidate).toBeNull();
+    expect(rtc.guest.onicecandidate).toBeNull();
+    for (const link of links) link.close();
+  });
+
+  it('an unusable ICE config fails as CONNECT_FAILED', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const bus = createSignalBus();
+    const attempt = connectPeer({
+      role: 'host', signals: bus.host, iceServers: ICE_SERVERS,
+      createPeerConnection: () => {
+        throw new DOMException('bad url', 'SyntaxError');
+      },
+    });
+    await expect(attempt).rejects.toMatchObject({ code: 'CONNECT_FAILED' });
+    errors.mockRestore();
+  });
+
+  it('a null hello fails cleanly', async () => {
+    const rtc = createFakeRtcPair();
+    const bus = createSignalBus();
+    const host = connectPeer({ role: 'host', signals: bus.host, iceServers: ICE_SERVERS, createPeerConnection: rtc.createHost });
+    // The guest side is driven by hand: answer the offer, then send null instead of a hello.
+    const guestPc = rtc.createGuest({ iceServers: ICE_SERVERS });
+    guestPc.ondatachannel = (event) => {
+      const channel = event.channel;
+      if (channel.label === 'ctrl') channel.onopen = () => channel.send('null');
+    };
+    const unsubscribe = bus.guest.subscribe(async (inbox) => {
+      const offer = inbox.find((signal) => signal.kind === 'offer');
+      if (!offer || guestPc.remoteDescription) return;
+      await guestPc.setRemoteDescription(JSON.parse(offer.payload));
+      const answer = await guestPc.createAnswer();
+      await guestPc.setLocalDescription(answer);
+      await bus.guest.send('answer', JSON.stringify(answer));
+    });
+    await expect(host).rejects.toMatchObject({ code: 'CONNECT_FAILED' });
+    unsubscribe();
+  });
+
+  it('the link closes when ICE fails after connecting', async () => {
+    const rtc = createFakeRtcPair();
+    const bus = createSignalBus();
+    const [hostLink, guestLink] = await Promise.all([
+      connectPeer({ role: 'host', signals: bus.host, iceServers: ICE_SERVERS, createPeerConnection: rtc.createHost }),
+      connectPeer({ role: 'guest', signals: bus.guest, iceServers: ICE_SERVERS, createPeerConnection: rtc.createGuest }),
+    ]);
+    const closed = vi.fn();
+    hostLink.onClose(closed);
+    rtc.host.setIceState('failed');
+    expect(closed).toHaveBeenCalledTimes(1);
+    guestLink.close();
+  });
+
+  it('the guest answers only the first offer', async () => {
+    const rtc = createFakeRtcPair();
+    const bus = createSignalBus();
+    const links = await Promise.all([
+      connectPeer({ role: 'host', signals: bus.host, iceServers: ICE_SERVERS, createPeerConnection: rtc.createHost }),
+      connectPeer({ role: 'guest', signals: bus.guest, iceServers: ICE_SERVERS, createPeerConnection: rtc.createGuest }),
+    ]);
+    for (const link of links) link.close();
+    const stray = createSignalBus();
+    const guest = connectPeer({
+      role: 'guest', signals: stray.guest, iceServers: ICE_SERVERS, createPeerConnection: createFakeRtcPair().createGuest,
+      timeoutMs: 200,
+    });
+    await stray.host.send('offer', JSON.stringify({ type: 'offer', sdp: 'fake' }));
+    await stray.host.send('offer', JSON.stringify({ type: 'offer', sdp: 'fake' }));
+    await guest.catch(() => {});
+    expect(stray.sentBy('guest').filter((signal) => signal.kind === 'answer')).toHaveLength(1);
+  });
+
+  it('a transport that delivers the inbox synchronously is handled', async () => {
+    const rtc = createFakeRtcPair();
+    const bus = createSignalBus();
+    await bus.host.send('ice', JSON.stringify({ candidate: 'early', sdpMid: '0', sdpMLineIndex: 0 }));
+    const syncGuest = {
+      send: bus.guest.send.bind(bus.guest),
+      subscribe: (onInbox: (signals: Signal[]) => void) => {
+        onInbox(bus.sentBy('host').map((signal) => ({ ...signal })));
+        return bus.guest.subscribe(onInbox);
+      },
+    };
+    const links = await Promise.all([
+      connectPeer({ role: 'host', signals: bus.host, iceServers: ICE_SERVERS, createPeerConnection: rtc.createHost }),
+      connectPeer({ role: 'guest', signals: syncGuest, iceServers: ICE_SERVERS, createPeerConnection: rtc.createGuest }),
+    ]);
+    for (const link of links) link.close();
+  });
+
+  it('a rejected candidate send does not fail the connection', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const rtc = createFakeRtcPair();
+    const bus = createSignalBus();
+    // As when the host has already marked the match playing and the server refuses late candidates.
+    const refusesIce = {
+      send: (kind: Signal['kind'], payload: string) =>
+        kind === 'ice' ? Promise.reject(new Error('Match is not connecting')) : bus.host.send(kind, payload),
+      subscribe: bus.host.subscribe.bind(bus.host),
+    };
+    const links = await Promise.all([
+      connectPeer({ role: 'host', signals: refusesIce, iceServers: ICE_SERVERS, createPeerConnection: rtc.createHost }),
+      connectPeer({ role: 'guest', signals: bus.guest, iceServers: ICE_SERVERS, createPeerConnection: rtc.createGuest }),
+    ]);
+    for (const link of links) link.close();
+    errors.mockRestore();
+  });
 });

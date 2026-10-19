@@ -49,13 +49,23 @@ export function connectPeer(options: PeerOptions): Promise<Link> {
   } = options;
 
   return new Promise<Link>((resolve, reject) => {
-    const pc = createPeerConnection({ iceServers });
+    let pc: RTCPeerConnection;
+    try {
+      pc = createPeerConnection({ iceServers });
+    } catch (err) {
+      // An unusable ICE config (bad URL, TURN without credentials) throws here; callers only handle PeerError.
+      console.error('Creating the WebRTC connection failed', err);
+      reject(new PeerError('CONNECT_FAILED'));
+      return;
+    }
     const channels: Partial<Record<Channel, RTCDataChannel>> = {};
     const seen = new Set<string>();
     const pendingIce: RTCIceCandidateInit[] = [];
     let settled = false;
     let helloSent = false;
     let peerHelloOk = false;
+    let offerHandled = false;
+    let unsubscribe = () => {};
 
     const fail = (code: PeerErrorCode) => {
       if (settled) return;
@@ -65,16 +75,6 @@ export function connectPeer(options: PeerOptions): Promise<Link> {
       reject(new PeerError(code));
     };
     const timer = setTimeout(() => fail('CONNECT_TIMEOUT'), timeoutMs);
-    const unsubscribe = signals.subscribe((inbox) => {
-      for (const signal of inbox) {
-        if (seen.has(signal.id)) continue;
-        seen.add(signal.id);
-        handleSignal(signal).catch((err) => {
-          console.error('WebRTC setup failed', err);
-          fail('CONNECT_FAILED');
-        });
-      }
-    });
     const cleanup = () => {
       clearTimeout(timer);
       unsubscribe();
@@ -82,7 +82,8 @@ export function connectPeer(options: PeerOptions): Promise<Link> {
     const send = (kind: Signal['kind'], payload: unknown) => {
       signals.send(kind, JSON.stringify(payload)).catch((err) => {
         console.error('Sending a WebRTC setup message failed', err);
-        fail('CONNECT_FAILED');
+        // A lost candidate is not fatal: other candidates, the timeout or ICE failure decide the outcome.
+        if (kind !== 'ice') fail('CONNECT_FAILED');
       });
     };
 
@@ -96,36 +97,42 @@ export function connectPeer(options: PeerOptions): Promise<Link> {
     const adopt = (channel: RTCDataChannel) => {
       if (channel.label !== 'ctrl' && channel.label !== 'state') return;
       channels[channel.label] = channel;
-      channel.onopen = sayHello;
+      channel.onopen = () => {
+        sayHello();
+        ready();
+      };
       if (channel.label === 'ctrl') channel.onmessage = (event) => onHello(String(event.data));
       sayHello();
-    };
-
-    const sayHello = () => {
-      if (helloSent || channels.ctrl?.readyState !== 'open' || channels.state?.readyState !== 'open') return;
-      helloSent = true;
-      channels.ctrl.send(JSON.stringify({ type: 'hello', version: protocolVersion }));
       ready();
     };
 
-    // Both sides must have sent and received a hello: resolving on receipt alone would strand a peer whose own
-    // channels opened later and who is still waiting for ours.
+    // Sent as soon as ctrl opens, not after state: the peer must hear our version even if we then fail on theirs.
+    const sayHello = () => {
+      if (helloSent || channels.ctrl?.readyState !== 'open') return;
+      helloSent = true;
+      channels.ctrl.send(JSON.stringify({ type: 'hello', version: protocolVersion }));
+    };
+
+    // Both sides must have sent and received a hello, with both channels open: resolving on receipt alone would strand
+    // a peer whose own channels opened later and who is still waiting for ours.
     const ready = () => {
-      if (settled || !helloSent || !peerHelloOk) return;
+      if (settled || !helloSent || !peerHelloOk || channels.state?.readyState !== 'open') return;
       settled = true;
       cleanup();
+      pc.onicecandidate = null;
       resolve(wrap(pc, channels.ctrl!, channels.state!));
     };
 
     const onHello = (data: string) => {
       if (settled) return;
-      let hello: { type?: unknown; version?: unknown };
+      let hello: unknown;
       try {
         hello = JSON.parse(data);
       } catch {
         return fail('CONNECT_FAILED');
       }
-      if (hello.type !== 'hello') return;
+      if (typeof hello !== 'object' || hello === null) return fail('CONNECT_FAILED');
+      if (!('type' in hello) || hello.type !== 'hello' || !('version' in hello)) return;
       if (hello.version !== protocolVersion) return fail('VERSION_MISMATCH');
       peerHelloOk = true;
       ready();
@@ -139,6 +146,8 @@ export function connectPeer(options: PeerOptions): Promise<Link> {
         return;
       }
       if (signal.kind === 'offer' && role === 'guest') {
+        if (offerHandled) return;
+        offerHandled = true;
         await pc.setRemoteDescription(payload);
         await flushIce();
         const answer = await pc.createAnswer();
@@ -152,6 +161,18 @@ export function connectPeer(options: PeerOptions): Promise<Link> {
     const flushIce = async () => {
       for (const candidate of pendingIce.splice(0)) await pc.addIceCandidate(candidate);
     };
+
+    // Subscribed last: a transport may deliver the inbox synchronously, and every handler above must exist by then.
+    unsubscribe = signals.subscribe((inbox) => {
+      for (const signal of inbox) {
+        if (seen.has(signal.id)) continue;
+        seen.add(signal.id);
+        handleSignal(signal).catch((err) => {
+          console.error('WebRTC setup failed', err);
+          fail('CONNECT_FAILED');
+        });
+      }
+    });
 
     if (role === 'host') {
       adopt(pc.createDataChannel('ctrl', { ordered: true }));
@@ -178,6 +199,10 @@ function wrap(pc: RTCPeerConnection, ctrl: RTCDataChannel, state: RTCDataChannel
     if (closed) return;
     closed = true;
     for (const handler of closeHandlers) handler();
+  };
+  // A dropped network often leaves the data channels nominally open, so watch ICE as well.
+  pc.oniceconnectionstatechange = () => {
+    if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'closed') onClosed();
   };
   for (const [name, channel] of [['ctrl', ctrl], ['state', state]] as const) {
     channel.onmessage = (event) => {
