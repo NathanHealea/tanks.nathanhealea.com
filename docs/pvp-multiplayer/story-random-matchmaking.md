@@ -70,15 +70,15 @@ The schema from `convex-backend-setup` defines `queue` and `matches`. `player-id
 | T8 | R5 | `myMatch hides guids` | `convex/matchmaking.test.ts` | View has `role`, no value equal to either GUID; outsider gets `null` |
 | T9 | R6 | `leaveQueue removes and tolerates absence` | `convex/matchmaking.test.ts` | Removes A's row; second call does not throw |
 | T10 | R8 | `bad guid is rejected` | `convex/matchmaking.test.ts` | Each function throws `Invalid player id` for `'x'` |
-| T11 | R7 | `hook heartbeats and leaves` | `src/net/useQuickMatch.test.ts` | With a fake Convex client and fake timers: heartbeat every 10 s while searching; `leaveQueue` on cancel and unmount |
+| T11 | R7 | `hook heartbeats and leaves` | `src/net/quickMatch.test.ts` | With a fake Convex client and fake timers: heartbeat every 10 s while searching; `leaveQueue` on cancel and unmount |
 
 **Not unit testable:** AC4 under real network concurrency — convex-test runs mutations serially, so T7 proves logic, not Convex's OCC. Verify manually by joining from three browser tabs at once against the dev deployment.
 
 ## Implementation plan
 
-1. [ ] Add `joinQueue` with pairing, idempotency and staleness rules — touches `convex/matchmaking.ts`, `convex/matchmaking.test.ts` — tests T1, T2, T3, T4, T5, T6, T7, T10
-2. [ ] Add `leaveQueue`, `queueHeartbeat` and `myMatch` — touches `convex/matchmaking.ts`, `convex/matchmaking.test.ts` — tests T8, T9, T10
-3. [ ] Add the `useQuickMatch` client hook — touches `src/net/useQuickMatch.ts`, `src/net/useQuickMatch.test.ts` — tests T11
+1. [x] Add `joinQueue` with pairing, idempotency and staleness rules — touches `convex/matchmaking.ts`, `convex/matchmaking.test.ts` — tests T1, T2, T3, T4, T5, T6, T7, T10
+2. [x] Add `leaveQueue`, `queueHeartbeat` and `myMatch` — touches `convex/matchmaking.ts`, `convex/matchmaking.test.ts` — tests T8, T9, T10
+3. [x] Add the `useQuickMatch` client hook — touches `src/net/useQuickMatch.ts`, `src/net/useQuickMatch.test.ts` — tests T11
 
 **Must not change:** The `requirePlayerId` / `roleIn` / `toMatchView` contracts from `player-identity`.
 
@@ -95,3 +95,5 @@ The schema from `convex-backend-setup` defines `queue` and `matches`. `player-id
 - 2026-10-18 — Planned.
 - 2026-10-18 — Plan approved.
 - 2026-10-18 — Started on branch story/random-matchmaking from origin/pvp-tank.
+- 2026-10-18 — Step 1: T4 as planned (A then C join, B pairs with A) cannot happen through joinQueue because C would pair with A; the test seeds two live waiters directly, which happens when a stale entry revives by heartbeat.
+- 2026-10-18 — Step 3: the hook's rules live in a plain QuickMatch class (src/net/quickMatch.ts) tested directly, because the repo has no React test library; useQuickMatch is a thin untested wrapper. T11 file renamed accordingly.
