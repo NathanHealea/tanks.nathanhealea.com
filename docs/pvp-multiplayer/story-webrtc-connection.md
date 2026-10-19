@@ -2,9 +2,9 @@
 type: story
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: webrtc-connection
-status: planned      # planned | in-progress | changes-requested | staged | released
+status: in-progress
 branch: story/webrtc-connection
-worktree_path:       # set by `wi start`
+worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/story-webrtc-connection
 created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
@@ -96,3 +96,4 @@ WebRTC needs the two peers to exchange an SDP offer and answer (descriptions of 
 
 - 2026-10-18 — Planned.
 - 2026-10-18 — Plan approved.
+- 2026-10-18 — Started on branch story/webrtc-connection from origin/pvp-tank.
