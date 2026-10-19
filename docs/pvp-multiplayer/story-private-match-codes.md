@@ -2,7 +2,7 @@
 type: story
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: private-match-codes
-status: staged
+status: released
 branch: story/private-match-codes
 worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/story-private-match-codes
 created: 2026-10-18
@@ -11,7 +11,7 @@ commit_type:         # optional override for the release subject type (default: 
 version: 0.6.0
 review_approved: 2026-10-18
 pr:                  # set by `wi pr`
-tag:                 # set by `wi release`; the tag sits on the branch's last commit
+tag: v0.6.0
 ---
 
 # Private matches with share codes and links
@@ -104,3 +104,4 @@ Same backend pieces as `random-matchmaking`: the `matches` table with its `by_co
 - 2026-10-18 — Test audit (second cycle): 3 MED gaps (expiry vs connecting, playing-match codes, replacing a live match) and 6 LOWs now covered; all 9 re-run mutants killed. Remaining: hooks untested (declared), joinPrivate check order is pinned only for own-code-vs-full.
 - 2026-10-18 — Staged: verification passed; version 0.5.0 → 0.6.0; no changelog file.
 - 2026-10-18 — Review approved.
+- 2026-10-18 — Released 0.6.0 as v0.6.0.
