@@ -458,4 +458,17 @@ describe('matches', () => {
       'Not in this match',
     );
   });
+
+  it('heartbeat during connecting records presence', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const t = convexTest(schema, modules);
+    const { matchId, guestId } = await seedPlayingMatch(t);
+    await t.run((ctx) => ctx.db.patch(matchId, { status: 'connecting' }));
+
+    await t.mutation(api.matches.heartbeat, { playerId: guestId, matchId });
+
+    const rows = await t.run((ctx) => ctx.db.query('presence').collect());
+    expect(rows).toMatchObject([{ matchId, role: 'guest', lastSeen: 1_000_000 }]);
+  });
 });

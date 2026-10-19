@@ -116,6 +116,18 @@ describe('LinkWatch', () => {
     expect(handlers.onBye).toHaveBeenCalledTimes(1);
   });
 
+  it('a bye does not stop the silence report, in case the leave never reaches the server', () => {
+    const { peer, handlers } = watchOnePair();
+    peer.send('ctrl', JSON.stringify({ t: 'bye' }));
+    vi.advanceTimersByTime(0);
+    expect(handlers.onBye).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(14_000);
+    expect(handlers.onLost).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1000);
+    expect(handlers.onLost).toHaveBeenCalledTimes(1);
+  });
+
   it('says nothing while messages keep arriving', () => {
     const { peer, handlers } = watchOnePair();
     for (let i = 0; i < 10; i++) {

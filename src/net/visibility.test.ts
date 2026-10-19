@@ -106,4 +106,19 @@ describe('leaveWhenHidden', () => {
 
     expect(onAway).toHaveBeenCalledTimes(1);
   });
+
+  it('a repeated hidden event does not start a second timer', () => {
+    const page = new FakePage();
+    const onAway = vi.fn();
+    leaveWhenHidden(page, onAway);
+
+    setHidden(page, true);
+    vi.advanceTimersByTime(5_000);
+    setHidden(page, true);
+    vi.advanceTimersByTime(9_000);
+    setHidden(page, false);
+    vi.advanceTimersByTime(30_000);
+
+    expect(onAway).not.toHaveBeenCalled();
+  });
 });

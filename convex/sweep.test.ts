@@ -218,4 +218,18 @@ describe('sweep', () => {
     await t.mutation(internal.sweep.sweep, {});
     expect(await snapshot(t)).toEqual(before);
   });
+
+  it('a waiting host who keeps beating holds the code past five minutes', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    const t = convexTest(schema, modules);
+    const waiting = await seedMatch(t, {
+      kind: 'private', code: 'HHHHHH', status: 'waiting', createdAt: NOW - 8 * MIN, expiresAt: NOW + 2 * MIN,
+    });
+    await seedPresence(t, waiting, 'host', NOW - 5 * MIN + 10 * SEC);
+    const before = await snapshot(t);
+
+    await t.mutation(internal.sweep.sweep, {});
+    expect(await snapshot(t)).toEqual(before);
+  });
 });
