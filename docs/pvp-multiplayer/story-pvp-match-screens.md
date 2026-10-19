@@ -9,7 +9,7 @@ created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
 version: 0.9.0
-review_approved:     # set by `wi accept`
+review_approved: 2026-10-19
 pr:                  # set by `wi pr`
 tag:                 # set by `wi release`; the tag sits on the branch's last commit
 ---
@@ -121,3 +121,4 @@ Build the screens that make online play usable: a **Play online** entry on the t
 - 2026-10-18 — Test audit: 32 mutants, 8 survived; 7 killed by new tests (f6fa5ba), 1 judged equivalent (instanceof in rematchErrorMessage), tie matchEnd left unpinned (cannot occur). 369 tests pass. Waiting on manual checks before stage.
 - 2026-10-19 — Manual checks skipped by the user on 2026-10-19: connectivity matrix (deferred from network-transport), two-browser flows, keyboard-only walkthrough (AC7), VoiceOver (AC3), axe, rendered contrast, phone landscape/zoom. None of R9 or the connect/rematch flows has been exercised in a browser.
 - 2026-10-19 — Staged: verification passed; version 0.8.0 → 0.9.0; no changelog file.
+- 2026-10-19 — Review approved.
