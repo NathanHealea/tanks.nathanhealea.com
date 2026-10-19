@@ -24,6 +24,18 @@ Add a TURN relay so players on networks that block direct peer-to-peer traffic c
 
 Item 8 connects with STUN only, so pairs behind symmetric NATs or UDP-blocking firewalls fail with `CONNECT_FAILED` or `CONNECT_TIMEOUT`. TURN relays the traffic through a server instead. Cloudflare Realtime TURN serves `turn.cloudflare.com` on 3478/udp, 443/udp and 5349/tcp and charges $0.05 per GB of outbound data when not used with its SFU ([Cloudflare Realtime TURN](https://developers.cloudflare.com/realtime/turn/)). The site is already on Cloudflare. How Cloudflare issues credentials (endpoint, key ID, token, TTL) is not verified yet; step 1 confirms it from Cloudflare's docs before any code. Convex actions may call third-party APIs; mutations may not ([Convex mutations](https://docs.convex.dev/functions/mutation-functions)). Depends on `webrtc-connection`.
 
+### Cloudflare credential API (confirmed 2026-10-19)
+
+From [Generate credentials](https://developers.cloudflare.com/realtime/turn/generate-credentials/):
+
+- `POST https://rtc.live.cloudflare.com/v1/turn/keys/$TURN_KEY_ID/credentials/generate-ice-servers` with `Authorization: Bearer $TURN_KEY_API_TOKEN`, `Content-Type: application/json`, body `{"ttl": <seconds>}`. Only `ttl` is documented; no maximum is stated, and it "should be larger than the time you'd expect the users to use the TURN service".
+- Success is `201` with `{"iceServers": [{"urls": ["stun:stun.cloudflare.com:3478"]}, {"urls": ["turn:turn.cloudflare.com:3478?transport=udp", "turn:…:443?transport=udp", "turn:…:3478?transport=tcp", "turn:…:80?transport=tcp", "turns:…:5349?transport=tcp", "turns:…:443?transport=tcp"], "username": "…", "credential": "…"}]}`.
+- Port 53 URLs "are known to be blocked by web browsers"; filter any out to avoid a timeout.
+- Revocation: `POST …/credentials/$USERNAME/revoke` → `204`.
+- Cloudflare's guidance matches this plan: the key and token stay on the server, one short-lived credential per user, and only `iceServers` goes to the browser.
+
+The `ttl` requested is 3600 s (R1). A match lasts minutes; credentials are only needed to establish and keep the relay allocation.
+
 ## Scope
 
 **In scope**
@@ -69,10 +81,10 @@ Item 8 connects with STUN only, so pairs behind symmetric NATs or UDP-blocking f
 
 ## Implementation plan
 
-1. [ ] Confirm Cloudflare's TURN credential API (endpoint, auth, TTL, response shape) from its docs and record it in this document — touches this document — tests none
-2. [ ] Add the `turnCredentials` action with membership check, per-player cap and secret handling — touches `convex/turn.ts`, `convex/schema.ts`, `convex/turn.test.ts` — tests T1, T2, T3
-3. [ ] Fetch credentials before connecting, with the STUN fallback — touches `src/net/iceServers.ts`, `src/net/iceServers.test.ts`, `src/net/peer.ts` — tests T4
-4. [ ] Add relay-only for quick matches, if approved — touches `src/net/peer.ts`, `src/net/peer.test.ts` — tests T5
+1. [x] Confirm Cloudflare's TURN credential API (endpoint, auth, TTL, response shape) from its docs and record it in this document — touches this document — tests none
+2. [x] Add the `turnCredentials` action with membership check, per-player cap and secret handling — touches `convex/turn.ts`, `convex/schema.ts`, `convex/turn.test.ts` — tests T1, T2, T3
+3. [x] Fetch credentials before connecting, with the STUN fallback — touches `src/net/iceServers.ts`, `src/net/iceServers.test.ts`, `src/net/peer.ts` — tests T4
+4. [x] Add relay-only for quick matches, if approved — touches `src/net/peer.ts`, `src/net/peer.test.ts` — tests T5
 
 **Must not change:** `connectPeer`'s failure codes and behavior when TURN is absent.
 
@@ -83,12 +95,15 @@ Item 8 connects with STUN only, so pairs behind symmetric NATs or UDP-blocking f
 - Never put TURN credentials in `VITE_ICE_SERVERS`: every `VITE_` variable is compiled into the public bundle, so anyone could lift them and use the relay. Keep that variable for STUN only; TURN credentials come from the `turnCredentials` action (raised in the webrtc-connection security review).
 
 - **Decided (2026-10-18): relay-only quick matches are required before public launch** (R6 is no longer conditional), so strangers never see each other's IP addresses. Cost estimate: Hides IP addresses from strangers, but every quick match then pays TURN bandwidth: about 30–60 KB/s per direction, roughly 100–200 MB per match-hour, about $0.01 per match-hour at $0.05/GB (inferred from item 9's snapshot estimate; measure).
-- **Decision needed: ship before launch or not.** Item 8's connectivity matrix decides.
+- ~~**Decision needed: ship before launch or not.**~~ Decided with R6: required before launch.
 - Cost runaway: anyone can create matches and request credentials. The per-match cap (R3) and the membership check bound it, but set a billing alert in Cloudflare.
-- Credential minting API details are unverified until step 1.
+- ~~Credential minting API details are unverified until step 1.~~ Confirmed; see Context.
 
 ## Progress log
 
 - 2026-10-18 — Planned.
 - 2026-10-18 — Plan approved.
 - 2026-10-19 — Started on branch story/turn-relay from origin/pvp-tank.
+- 2026-10-19 — Step 1: Cloudflare credential API confirmed from its docs and recorded in Context (endpoint, bearer auth, ttl body, 201 iceServers shape, port 53 filtering, revoke). Stopping before step 2 (high-risk: secrets, billing) for sign-off and for the account owner to create the TURN key.
+- 2026-10-19 — User signed off step 2 (secrets, paid integration) on 2026-10-19. The account owner creates the TURN key and sets the two Convex env vars; tests stub Cloudflare.
+- 2026-10-19 — Steps 2-4 built. Deviations: T5's kind→policy test lives in opponent.test.ts (where the match kind is known), with a pass-through test in peer.test.ts; a quick match with no relay fails closed (CONNECT_FAILED, nothing sent) rather than falling back to direct, since R6 forbids showing a stranger's address — R4's STUN fallback applies to private matches only; convex/ declares process.env locally instead of adding @types/node; turnGrants rows are swept with their match; SHARING_NOTICE now uses R11's wording. Until CLOUDFLARE_TURN_KEY_ID and CLOUDFLARE_TURN_KEY_API_TOKEN are set, quick matches cannot connect.
