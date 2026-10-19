@@ -1,7 +1,7 @@
 import { v } from 'convex/values';
 import type { Doc } from './_generated/dataModel';
-import { mutation, type QueryCtx } from './_generated/server';
-import { requirePlayerId } from './lib/access';
+import { mutation, query, type QueryCtx } from './_generated/server';
+import { requirePlayerId, toMatchView, type MatchView } from './lib/access';
 
 /** A queue entry with no heartbeat for this long is treated as a closed tab and never paired. */
 export const QUEUE_STALE_MS = 30_000;
@@ -66,4 +66,41 @@ export async function activeMatchFor(ctx: Pick<QueryCtx, 'db'>, playerId: string
     .withIndex('by_guest', (q) => q.eq('guestId', playerId))
     .collect();
   return [...asHost, ...asGuest].find((m) => ACTIVE.includes(m.status)) ?? null;
+}
+
+export const leaveQueue = mutation({
+  args: { playerId: v.string() },
+  handler: async (ctx, { playerId }) => {
+    requirePlayerId(playerId);
+    const mine = await queueEntry(ctx, playerId);
+    if (mine) await ctx.db.delete(mine._id);
+    return null;
+  },
+});
+
+export const queueHeartbeat = mutation({
+  args: { playerId: v.string() },
+  handler: async (ctx, { playerId }) => {
+    requirePlayerId(playerId);
+    const mine = await queueEntry(ctx, playerId);
+    if (mine) await ctx.db.patch(mine._id, { lastSeen: Date.now() });
+    return null;
+  },
+});
+
+/** The caller's active match as a client may see it, or null. Re-runs for the client whenever the match changes. */
+export const myMatch = query({
+  args: { playerId: v.string() },
+  handler: async (ctx, { playerId }): Promise<MatchView | null> => {
+    requirePlayerId(playerId);
+    const match = await activeMatchFor(ctx, playerId);
+    return match ? toMatchView(match, playerId) : null;
+  },
+});
+
+function queueEntry(ctx: Pick<QueryCtx, 'db'>, playerId: string) {
+  return ctx.db
+    .query('queue')
+    .withIndex('by_player', (q) => q.eq('playerId', playerId))
+    .unique();
 }

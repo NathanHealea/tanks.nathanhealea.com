@@ -181,7 +181,95 @@ describe('matchmaking', () => {
     const t = convexTest(schema, modules);
 
     await expectConvexErrorAsync(t.mutation(api.matchmaking.joinQueue, { playerId: 'x' }), 'Invalid player id');
+    await expectConvexErrorAsync(t.mutation(api.matchmaking.leaveQueue, { playerId: 'x' }), 'Invalid player id');
+    await expectConvexErrorAsync(t.mutation(api.matchmaking.queueHeartbeat, { playerId: 'x' }), 'Invalid player id');
+    await expectConvexErrorAsync(t.query(api.matchmaking.myMatch, { playerId: 'x' }), 'Invalid player id');
     const queue = await t.run((ctx) => ctx.db.query('queue').collect());
     expect(queue).toEqual([]);
+  });
+
+  it('myMatch hides guids', async () => {
+    const t = convexTest(schema, modules);
+    const a = crypto.randomUUID();
+    const b = crypto.randomUUID();
+    const outsider = crypto.randomUUID();
+
+    await t.mutation(api.matchmaking.joinQueue, { playerId: a });
+    await t.mutation(api.matchmaking.joinQueue, { playerId: b });
+    const hostView = await t.query(api.matchmaking.myMatch, { playerId: a });
+    const guestView = await t.query(api.matchmaking.myMatch, { playerId: b });
+
+    expect(hostView).toMatchObject({ role: 'host', kind: 'quick', status: 'connecting' });
+    expect(guestView).toMatchObject({ role: 'guest', kind: 'quick', status: 'connecting' });
+    for (const view of [hostView, guestView]) {
+      const json = JSON.stringify(view);
+      expect(json).not.toContain(a);
+      expect(json).not.toContain(b);
+    }
+    expect(await t.query(api.matchmaking.myMatch, { playerId: outsider })).toBeNull();
+  });
+
+  it('myMatch ignores finished matches', async () => {
+    const t = convexTest(schema, modules);
+    const a = crypto.randomUUID();
+    const b = crypto.randomUUID();
+    await t.run(async (ctx) => {
+      await ctx.db.insert('matches', {
+        kind: 'quick',
+        hostId: a,
+        guestId: b,
+        status: 'finished',
+        seed: 1,
+        round: 3,
+        hostScore: 3,
+        guestScore: 1,
+        winner: 'host',
+        endReason: 'score',
+        createdAt: 1_000_000,
+        hostSeen: 1_000_000,
+        guestSeen: 1_000_000,
+      });
+    });
+
+    expect(await t.query(api.matchmaking.myMatch, { playerId: a })).toBeNull();
+    expect(await t.query(api.matchmaking.myMatch, { playerId: b })).toBeNull();
+  });
+
+  it('leaveQueue removes and tolerates absence', async () => {
+    const t = convexTest(schema, modules);
+    const a = crypto.randomUUID();
+    const b = crypto.randomUUID();
+    await t.run(async (ctx) => {
+      await ctx.db.insert('queue', { playerId: b, joinedAt: 999_000, lastSeen: 999_000 });
+    });
+    await t.mutation(api.matchmaking.joinQueue, { playerId: a });
+
+    expect(await t.mutation(api.matchmaking.leaveQueue, { playerId: a })).toBeNull();
+    const afterFirst = await t.run((ctx) => ctx.db.query('queue').collect());
+    expect(afterFirst.map((row) => row.playerId)).toEqual([b]);
+
+    expect(await t.mutation(api.matchmaking.leaveQueue, { playerId: a })).toBeNull();
+    const afterSecond = await t.run((ctx) => ctx.db.query('queue').collect());
+    expect(afterSecond.map((row) => row.playerId)).toEqual([b]);
+  });
+
+  it('queueHeartbeat refreshes lastSeen', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const t = convexTest(schema, modules);
+    const a = crypto.randomUUID();
+    const b = crypto.randomUUID();
+
+    await t.mutation(api.matchmaking.joinQueue, { playerId: a });
+    vi.advanceTimersByTime(20_000);
+    expect(await t.mutation(api.matchmaking.queueHeartbeat, { playerId: a })).toBeNull();
+
+    const queue = await t.run((ctx) => ctx.db.query('queue').collect());
+    expect(queue).toHaveLength(1);
+    expect(queue[0]).toMatchObject({ playerId: a, joinedAt: 1_000_000, lastSeen: 1_020_000 });
+
+    expect(await t.mutation(api.matchmaking.queueHeartbeat, { playerId: b })).toBeNull();
+    const afterStranger = await t.run((ctx) => ctx.db.query('queue').collect());
+    expect(afterStranger.map((row) => row.playerId)).toEqual([a]);
   });
 });
