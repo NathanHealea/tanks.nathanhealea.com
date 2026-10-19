@@ -23,6 +23,8 @@ export function Card({ title, children }: { title: string; children: ReactNode }
   );
 }
 
+export const SEARCH_FAILED = "Couldn't start the search. Cancel and try again.";
+
 export function OnlineMenu(props: { onQuick(): void; onCreate(): void; onJoin(): void; onBack(): void }) {
   return (
     <Card title="Play online">
@@ -56,10 +58,14 @@ export function Unavailable({ reason, onBack }: { reason: 'no-backend' | 'offlin
   );
 }
 
-export function Searching({ onCancel }: { onCancel(): void }) {
+export function Searching({ failed, onCancel }: { failed: boolean; onCancel(): void }) {
   return (
     <Card title="Looking for an opponent">
-      <p>You'll be matched with the next player who searches.</p>
+      {failed ? (
+        <p className="error-text">{SEARCH_FAILED}</p>
+      ) : (
+        <p>You'll be matched with the next player who searches.</p>
+      )}
       <button type="button" className="secondary" onClick={onCancel} autoFocus>
         Cancel
       </button>

@@ -15,7 +15,7 @@ import type { HudSnapshot } from '../../render/Scene';
 import { TouchControls } from '../TouchControls';
 import { initialScreen, reduce, type OnlineAction, type OnlineEffect, type OnlineScreen } from './flow';
 import { Connecting, ConnectFailed, Countdown, LeaveConfirm, MatchResult, PvpHud } from './MatchScreens';
-import { roundResultText, scoreText } from './messages';
+import { rematchErrorMessage, roundResultText, scoreText } from './messages';
 import { JoinWithCode, OnlineMenu, PrivateWaiting, Searching, Unavailable } from './OnlineScreens';
 
 const isTouch = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
@@ -206,7 +206,7 @@ export function OnlinePlay(props: Props) {
         if (!id) break;
         convex.mutation(api.matches.requestRematch, { playerId: me, matchId: id }).catch((err) => {
           console.error('Requesting a rematch failed', err);
-          setError('Your opponent has left, so a rematch is not possible.');
+          setError(rematchErrorMessage(err));
           dispatch({ type: 'cancelRematch' });
         });
         break;
@@ -328,7 +328,7 @@ export function OnlinePlay(props: Props) {
         />
       )}
       {screen.name === 'unavailable' && <Unavailable reason={screen.reason} onBack={back} />}
-      {screen.name === 'searching' && <Searching onCancel={() => dispatch({ type: 'cancel' })} />}
+      {screen.name === 'searching' && <Searching failed={quick.state === 'error'} onCancel={() => dispatch({ type: 'cancel' })} />}
       {screen.name === 'privateWaiting' && (
         <PrivateWaiting
           code={priv.match?.code ?? (codeExpired ? lastCode.current.code : undefined)}

@@ -1,3 +1,4 @@
+import { ConvexError } from 'convex/values';
 import { describe, expect, it } from 'vitest';
 import { formatCode } from '../../net/share';
 import {
@@ -5,6 +6,7 @@ import {
   connectFailedMessage,
   joinErrorMessage,
   matchResultText,
+  rematchErrorMessage,
   roundResultText,
   scoreText,
   spokenCode,
@@ -41,5 +43,12 @@ describe('online messages', () => {
     expect(connectFailedMessage('VERSION_MISMATCH')).toBe('Your opponent is on a different version. Reload to update.');
     expect(connectFailedMessage('CONNECT_TIMEOUT')).toBe(unreachable);
     expect(connectFailedMessage('CONNECT_FAILED')).toBe(unreachable);
+  });
+
+  it('rematch failures say why', () => {
+    expect(rematchErrorMessage(new ConvexError('OPPONENT_LEFT'))).toBe('Your opponent has left, so a rematch is not possible.');
+    expect(rematchErrorMessage(new ConvexError('ALREADY_IN_MATCH'))).toBe("You're already in a match.");
+    expect(rematchErrorMessage(new ConvexError('Match is not finished'))).toBe("Couldn't ask for a rematch. Try again.");
+    expect(rematchErrorMessage(new Error('network'))).toBe("Couldn't ask for a rematch. Try again.");
   });
 });

@@ -1,3 +1,4 @@
+import { ConvexError } from 'convex/values';
 import type { JoinError } from '../../net/joinErrors';
 import type { PeerErrorCode } from '../../net/peer';
 
@@ -39,4 +40,11 @@ export function connectFailedMessage(reason: PeerErrorCode): string {
 
 export function colorName(playerId: 'p1' | 'p2'): string {
   return playerId === 'p1' ? 'Blue' : 'Green';
+}
+
+export function rematchErrorMessage(err: unknown): string {
+  const reason = err instanceof ConvexError ? err.data : null;
+  if (reason === 'OPPONENT_LEFT') return 'Your opponent has left, so a rematch is not possible.';
+  if (reason === 'ALREADY_IN_MATCH') return "You're already in a match.";
+  return "Couldn't ask for a rematch. Try again.";
 }
