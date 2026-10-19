@@ -62,7 +62,7 @@ Run a live PvP match over the peer link. The host's browser runs the real simula
 
 | ID | Covers | Test | File | Asserts |
 |----|--------|------|------|---------|
-| T1 | R3 | `protocol rejects malformed messages` | `src/net/protocol.test.ts` | Unknown type, missing fields, NaN, Infinity → `null`; long move clamped to length 1 |
+| T1 | R3 | `protocol rejects malformed messages` | `src/net/protocol.test.ts` | Unknown type, missing fields, NaN, Infinity → `null`; long move clamped to length 1; a `roundStart` layout that is empty, not all strings, ragged, or larger than 20×14 → `null` |
 | T2 | R2, R3 | `fire counters apply once per increase` | `src/net/hostSession.test.ts` | Counter 0→1→1→3 fires 3 times total over ticks; jump of 10 capped at 3; stale seq ignored |
 | T3 | R1 | `host steps both players` | `src/net/hostSession.test.ts` | Over a `LinkPair`, guest moving right changes `p2.pos.x` on the host; with no input `p2` stays still |
 | T4 | R4 | `snapshots carry events and grid edits` | `src/net/hostSession.test.ts` | After a mine breaks cork, the next snapshot lists the broken cells and an `explode` event |
@@ -96,6 +96,7 @@ Run a live PvP match over the peer link. The host's browser runs the real simula
 - Snapshot size is estimated at 1–2 KB of JSON (2 tanks, up to ~8 bullets, up to 4 mines), about 30–60 KB/s. Measure in step 5; switch to a compact array encoding only if it matters.
 - The host's `rAF` loop stops in a background tab. Item 11 owns that behavior; this item must not assume the host keeps ticking.
 - Round results are reported by the host and not independently checked (epic risk, accepted).
+- The guest parses the arena rows the host sends. `parseLevel` has no size limits, so the protocol must bound the layout (from pvp-sim-rules security review) before it reaches `createPvpGame` or the renderer.
 
 ## Progress log
 
