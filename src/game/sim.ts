@@ -6,8 +6,8 @@ import { forward, wrapAngle } from './math';
 import { TANK_STATS, type TankKind } from './tanks';
 import {
   CORK,
-  isPvpPlayer,
   EMPTY,
+  isPvpPlayer,
   type GameEvent,
   type GameState,
   type Grid,
@@ -294,7 +294,7 @@ function separateTanks(s: GameState): void {
 function updateOutcome(s: GameState): void {
   if (s.outcome) return;
   if (s.mode === 'pvp') {
-    // Checked after every hit and blast in the tick, so two tanks popped on one tick read as a draw, not a win.
+    // Checked once per tick, after all hits and blasts, so two tanks popped on one tick read as a draw, not a win.
     const alive = s.tanks.filter((t) => t.alive);
     if (alive.length === 1) {
       const id = alive[0].id;
