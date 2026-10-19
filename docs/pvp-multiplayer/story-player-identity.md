@@ -2,13 +2,13 @@
 type: story
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: player-identity
-status: in-progress
+status: staged
 branch: story/player-identity
 worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/story-player-identity
 created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
-version:             # set by `wi stage`
+version: 0.2.0
 review_approved:     # set by `wi accept`
 pr:                  # set by `wi pr`
 tag:                 # set by `wi release`; the tag sits on the branch's last commit
@@ -63,6 +63,8 @@ The user requirement: no login, no account, a GUID generated each time the game 
 | T4 | R4 | `roleIn returns host or guest` | `convex/lib/access.test.ts` | For a seeded match, host GUID → `'host'`, guest GUID → `'guest'` |
 | T5 | R3, R4 | `roleIn rejects outsiders and bad ids` | `convex/lib/access.test.ts` | Outsider throws `Not in this match`; malformed throws `Invalid player id` |
 | T6 | R5 | `toMatchView hides player ids` | `convex/lib/access.test.ts` | Serialized view of a match contains neither GUID and includes the caller's role |
+| T7 | R4 | `toMatchView refuses outsiders`, `loadMatchAs resolves a member and rejects everyone else` | `convex/lib/access.test.ts` | A view needs a member's id; `loadMatchAs` validates the id before reading, then reports a missing match or an outsider |
+| T8 | R1 | `works where crypto.randomUUID does not exist`, `many ids are all valid and distinct` | `src/net/identity.test.ts` | Ids are generated on plain-http pages (no `randomUUID`) and are distinct v4 UUIDs |
 
 **Not unit testable:** R2 across a real session (AC2) — check DevTools Application tab after a manual match. R4 and R5 are re-asserted per function in items 6, 7 and 11.
 
@@ -86,3 +88,6 @@ The user requirement: no login, no account, a GUID generated each time the game 
 - 2026-10-18 — Planned.
 - 2026-10-18 — Plan approved.
 - 2026-10-18 — Started on branch story/player-identity from origin/pvp-tank.
+- 2026-10-18 — Staging review fixes: player ids now built from crypto.getRandomValues because randomUUID is secure-context only and phones test the dev server over plain http; toMatchView takes the caller's id and checks membership (was any role); added loadMatchAs (scope promised it; validates id before reading); isPlayerId rejects non-strings; MatchView is a named type. Added T7, T8.
+- 2026-10-18 — Test audit: 34 of 40 mutants killed initially; fixed the gaps (ConvexError class, view values, URL/history/IndexedDB writes, client ids checked against the server validator) and corrected two overstated comments; all 7 re-run mutants killed.
+- 2026-10-18 — Staged: verification passed; version 0.1.2 → 0.2.0; no changelog file.
