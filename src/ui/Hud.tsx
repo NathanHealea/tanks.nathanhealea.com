@@ -17,7 +17,7 @@ interface Props {
   onToggleMute: () => void;
 }
 
-function Pips({ label, have, max, reload, reloadTotal }: { label: string; have: number; max: number; reload: number; reloadTotal: number }) {
+export function Pips({ label, have, max, reload, reloadTotal }: { label: string; have: number; max: number; reload: number; reloadTotal: number }) {
   const reloading = have === 0 && reload > 0;
   return (
     <div className="ammo" aria-label={reloading ? `${label}: reloading` : `${label}: ${have} of ${max}`}>
