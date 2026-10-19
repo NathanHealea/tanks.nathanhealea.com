@@ -232,4 +232,18 @@ describe('sweep', () => {
     await t.mutation(internal.sweep.sweep, {});
     expect(await snapshot(t)).toEqual(before);
   });
+
+  it('TURN grants go with their match', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    const t = convexTest(schema, modules);
+    const old = await seedMatch(t, { status: 'finished', createdAt: NOW - 25 * HOUR, winner: 'host', endReason: 'score' });
+    const recent = await seedMatch(t, { status: 'finished', createdAt: NOW - HOUR, winner: 'host', endReason: 'score' });
+    for (const matchId of [old, recent]) {
+      await t.run((ctx) => ctx.db.insert('turnGrants', { matchId, role: 'host', count: 1 }));
+    }
+    await t.mutation(internal.sweep.sweep, {});
+    const grants = await t.run((ctx) => ctx.db.query('turnGrants').collect());
+    expect(grants.map((g) => g.matchId)).toEqual([recent]);
+  });
 });

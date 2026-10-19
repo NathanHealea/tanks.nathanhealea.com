@@ -55,6 +55,13 @@ export default defineSchema({
     lastSeen: v.number(),
   }).index('by_match', ['matchId', 'role']),
 
+  // How many TURN credentials each player has drawn for a match: each is a billable relay allocation.
+  turnGrants: defineTable({
+    matchId: v.id('matches'),
+    role,
+    count: v.number(),
+  }).index('by_match', ['matchId', 'role']),
+
   signals: defineTable({
     matchId: v.id('matches'),
     to: role,

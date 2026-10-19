@@ -17,6 +17,7 @@ import type * as matchmaking from "../matchmaking.js";
 import type * as privateMatch from "../privateMatch.js";
 import type * as signaling from "../signaling.js";
 import type * as sweep from "../sweep.js";
+import type * as turn from "../turn.js";
 
 import type {
   ApiFromModules,
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   privateMatch: typeof privateMatch;
   signaling: typeof signaling;
   sweep: typeof sweep;
+  turn: typeof turn;
 }>;
 
 /**

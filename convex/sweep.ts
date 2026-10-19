@@ -10,7 +10,7 @@ export const IDLE_MS = 60_000;
  * suspends the page's heartbeat. A closed tab is caught sooner by its pagehide leave.
  */
 export const WAITING_IDLE_MS = 5 * 60_000;
-/** Finished matches hold only random ids, roles and scores, and still go after a day. */
+/** Finished matches hold only random ids, roles and scores, and still go after a day, with everything kept per match. */
 export const RETENTION_MS = 24 * 60 * 60 * 1000;
 
 /**
@@ -100,6 +100,11 @@ async function deleteOldMatches(ctx: MutationCtx, now: number, status: 'finished
     .take(SWEEP_BATCH);
   for (const match of old) {
     for (const row of await presenceRows(ctx, match)) await ctx.db.delete(row._id);
+    const grants = await ctx.db
+      .query('turnGrants')
+      .withIndex('by_match', (q) => q.eq('matchId', match._id))
+      .collect();
+    for (const grant of grants) await ctx.db.delete(grant._id);
     await ctx.db.delete(match._id);
   }
 }
