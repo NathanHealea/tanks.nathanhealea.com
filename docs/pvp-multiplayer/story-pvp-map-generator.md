@@ -2,9 +2,9 @@
 type: story
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: pvp-map-generator
-status: planned      # planned | in-progress | changes-requested | staged | released
+status: in-progress
 branch: story/pvp-map-generator
-worktree_path:       # set by `wi start`
+worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/story-pvp-map-generator
 created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
@@ -91,3 +91,4 @@ Generate a new random arena for every PvP round from a seed. Arenas are 20×14 l
 
 - 2026-10-18 — Planned.
 - 2026-10-18 — Plan approved.
+- 2026-10-18 — Started on branch story/pvp-map-generator from origin/pvp-tank.
