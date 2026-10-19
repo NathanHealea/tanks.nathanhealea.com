@@ -134,4 +134,32 @@ describe('HostSession', () => {
     const fires = snaps.flatMap((snap) => snap.events).filter((e) => e.type === 'fire');
     expect(fires).toHaveLength(1);
   });
+
+  it('every snapshot carries the round, 1 by default', () => {
+    const rounds = (host: (link: Link) => HostSession): number[] => {
+      const [hostLink, guestLink] = createLinkPair();
+      const seen: number[] = [];
+      guestLink.onMessage((channel, raw) => {
+        const message = channel === 'state' ? parseHostMessage(raw) : null;
+        if (message?.t === 'snap') seen.push(message.round);
+      });
+      const session = host(hostLink);
+      for (let i = 0; i < 6; i++) session.advance(DT, IDLE_INPUT);
+      vi.advanceTimersByTime(0);
+      return seen;
+    };
+
+    expect(rounds((link) => new HostSession(link, OPEN, 1))).toEqual([1, 1, 1]);
+    expect(rounds((link) => new HostSession(link, OPEN, 1, { round: 3 }))).toEqual([3, 3, 3]);
+  });
+
+  it('reports the round over once, even when one frame runs several ticks past the delay', () => {
+    const [hostLink] = createLinkPair();
+    const onRoundOver = vi.fn();
+    const host = new HostSession(hostLink, OPEN, 1, { onRoundOver });
+    p2(host).alive = false;
+    for (let i = 0; i < 200; i++) host.advance(0.1, IDLE_INPUT);
+    expect(onRoundOver).toHaveBeenCalledTimes(1);
+    expect(onRoundOver).toHaveBeenCalledWith('p1');
+  });
 });

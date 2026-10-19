@@ -38,12 +38,14 @@ export class GuestSession implements GameSession {
     private readonly link: Link,
     rows: string[],
     seed: number,
+    private readonly round = 1,
   ) {
     this.state = createPvpGame(rows, seed);
     this.stopListening = link.onMessage((channel, raw) => {
       if (channel !== 'state') return;
       const message = parseHostMessage(raw);
-      if (message?.t !== 'snap' || this.seenTicks.has(message.tick)) return;
+      // Round before tick: tick numbers restart each round, so checking the tick first would drop the new round's.
+      if (message?.t !== 'snap' || message.round !== this.round || this.seenTicks.has(message.tick)) return;
       this.seenTicks.add(message.tick);
       this.fresh.push(message);
       this.snapshots.push(message);

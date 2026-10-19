@@ -21,6 +21,7 @@ function snapshot(): SnapshotMessage {
   const s = createPvpGame([...FALLBACK_ARENA], 9);
   return {
     t: 'snap',
+    round: 2,
     tick: 10,
     time: 10 / 60,
     tanks: s.tanks,
@@ -138,6 +139,11 @@ describe('protocol', () => {
       withField(ROUND_END, ['wins', 'p2'], 'NaN'),
       withoutField(ROUND_END, ['wins']),
       withField(ROUND_END, ['winner'], 'x'),
+      withoutField(snap, ['round']),
+      withField(snap, ['round'], 0),
+      withField(snap, ['round'], 1.5),
+      withField(snap, ['round'], '2'),
+      withInfinity(snap, ['round']),
       withInfinity(snap, ['tick']),
       withField(snap, ['time'], 'NaN'),
       withoutField(snap, ['tanks']),

@@ -1,6 +1,7 @@
 import { FixedClock, type GameSession } from '../game/session';
+import { DT, OUTCOME_DELAY } from '../game/config';
 import { createPvpGame, IDLE_INPUT, step } from '../game/sim';
-import type { GameEvent, GameState, PlayerInput } from '../game/types';
+import type { GameEvent, GameState, PlayerInput, PvpPlayer } from '../game/types';
 import type { Link } from './link';
 import { encode, parseGuestMessage } from './protocol';
 
@@ -28,12 +29,20 @@ export class HostSession implements GameSession {
   private events: GameEvent[] = [];
   private broken = new Set<number>();
   private stopListening: () => void;
+  private readonly round: number;
+  private countdownTicks: number;
+  private readonly onRoundOver?: (result: PvpPlayer | null) => void;
+  private roundOver = false;
 
   constructor(
     private readonly link: Link,
     rows: string[],
     seed: number,
+    options: { round?: number; countdownTicks?: number; onRoundOver?: (result: PvpPlayer | null) => void } = {},
   ) {
+    this.round = options.round ?? 1;
+    this.countdownTicks = options.countdownTicks ?? 0;
+    this.onRoundOver = options.onRoundOver;
     this.state = createPvpGame(rows, seed);
     this.stopListening = link.onMessage((channel, raw) => {
       if (channel === 'state') this.onGuestInput(raw);
@@ -44,7 +53,16 @@ export class HostSession implements GameSession {
     const events: GameEvent[] = [];
     let local = localInput;
     this.ticksLastAdvance = this.clock.ticks(elapsed);
-    for (let i = 0; i < this.ticksLastAdvance; i++) {
+    for (let i = 0; i < this.ticksLastAdvance && !this.roundOver; i++) {
+      if (this.countdownTicks > 0) {
+        // Frozen during the countdown: nothing moves, and presses made now are dropped rather than saved for the start.
+        this.countdownTicks--;
+        this.pendingFires = 0;
+        this.pendingMines = 0;
+        local = { ...local, fire: false, mine: false };
+        this.recordForSnapshot([]);
+        continue;
+      }
       const guest = { ...this.guest, fire: this.pendingFires > 0, mine: this.pendingMines > 0 };
       if (guest.fire) this.pendingFires--;
       if (guest.mine) this.pendingMines--;
@@ -52,8 +70,18 @@ export class HostSession implements GameSession {
       local = { ...local, fire: false, mine: false };
       events.push(...tickEvents);
       this.recordForSnapshot(tickEvents);
+      const s = this.state;
+      if (s.outcome && s.time - s.outcomeTime >= OUTCOME_DELAY) {
+        this.roundOver = true;
+        this.onRoundOver?.(s.winner);
+      }
     }
     return events;
+  }
+
+  /** Seconds of countdown left before this round starts moving. */
+  get countdownLeft(): number {
+    return this.countdownTicks * DT;
   }
 
   dispose(): void {
@@ -87,6 +115,7 @@ export class HostSession implements GameSession {
       'state',
       encode({
         t: 'snap',
+        round: this.round,
         tick: s.tick,
         time: s.time,
         tanks: s.tanks,

@@ -14,6 +14,8 @@ export interface InputMessage {
 /** Host to guest, on `state`. broken lists every cork cell broken this round, so a dropped snapshot cannot desync walls. */
 export interface SnapshotMessage {
   t: 'snap';
+  /** A late snapshot from the previous round must not reach the next round's guest session. */
+  round: number;
   tick: number;
   time: number;
   tanks: TankState[];
@@ -84,7 +86,7 @@ export function parseHostMessage(raw: string): HostMessage | null {
     return { t: 'roundEnd', round: m.round, result: m.result, wins: { p1: wins.p1, p2: wins.p2 }, winner: m.winner };
   }
   if (m.t === 'snap') {
-    if (!isFiniteNumber(m.tick) || !isFiniteNumber(m.time)) return null;
+    if (!isPositiveInteger(m.round) || !isFiniteNumber(m.tick) || !isFiniteNumber(m.time)) return null;
     if (!Array.isArray(m.tanks) || !m.tanks.every(isTank)) return null;
     if (!Array.isArray(m.bullets) || !m.bullets.every(hasPos)) return null;
     if (!Array.isArray(m.mines) || !m.mines.every(hasPos)) return null;

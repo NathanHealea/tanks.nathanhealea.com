@@ -19,6 +19,7 @@ function tank(id: 'p1' | 'p2', fields: Partial<TankState>): TankState {
 function sendSnap(host: Link, fields: Partial<SnapshotMessage> & { tick: number; time: number }): void {
   const message: SnapshotMessage = {
     t: 'snap',
+    round: 1,
     tanks: [tank('p1', {}), tank('p2', {})],
     bullets: [],
     mines: [],
@@ -163,6 +164,45 @@ describe('GuestSession', () => {
     guest.advance(DT, IDLE_INPUT);
 
     expect(guest.state.grid.cells[index]).toBe(EMPTY);
+  });
+
+  it('ignores snapshots from another round', () => {
+    const [hostLink, guestLink] = createLinkPair();
+    const guest = new GuestSession(guestLink, OPEN, 1, 2);
+    const start = { ...p2(guest).pos };
+
+    sendSnap(hostLink, {
+      round: 1,
+      tick: 2,
+      time: 2 * DT,
+      tanks: [tank('p1', {}), tank('p2', { pos: { x: 9.5, z: 2.5 } })],
+      events: [{ type: 'bounce', pos: { x: 1, z: 1 } }],
+    });
+    expect(guest.advance(DT, IDLE_INPUT)).toEqual([]);
+    expect(p2(guest).pos).toEqual(start);
+
+    sendSnap(hostLink, {
+      round: 2,
+      tick: 2,
+      time: 2 * DT,
+      tanks: [tank('p1', {}), tank('p2', { pos: { x: 9.5, z: 2.5 } })],
+    });
+    guest.advance(DT, IDLE_INPUT);
+    expect(p2(guest).pos.x).toBeCloseTo(9.5, 5);
+  });
+
+  it('a guest built without a round accepts round 1 snapshots only', () => {
+    const [hostLink, guestLink] = createLinkPair();
+    const guest = new GuestSession(guestLink, OPEN, 1);
+    const start = { ...p2(guest).pos };
+
+    sendSnap(hostLink, { round: 2, tick: 2, time: 2 * DT, tanks: [tank('p1', {}), tank('p2', { pos: { x: 9.5, z: 2.5 } })] });
+    guest.advance(DT, IDLE_INPUT);
+    expect(p2(guest).pos).toEqual(start);
+
+    sendSnap(hostLink, { round: 1, tick: 4, time: 4 * DT, tanks: [tank('p1', {}), tank('p2', { pos: { x: 9.5, z: 2.5 } })] });
+    guest.advance(DT, IDLE_INPUT);
+    expect(p2(guest).pos.x).toBeCloseTo(9.5, 5);
   });
 
   it('updates tank objects in place', () => {
