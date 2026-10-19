@@ -79,8 +79,12 @@ export const turnCredentials = action({
   },
 });
 
-/** Browsers block port 53, so a URL on it would only make ICE wait for a timeout (Cloudflare's docs). */
-const usable = (url: string) => !/:53(\?|$)/.test(url);
+/**
+ * Only Cloudflare's own servers, so even a tampered response cannot steer the relay elsewhere; and never port 53,
+ * which browsers block, so ICE would only wait for a timeout (Cloudflare's docs).
+ */
+const usable = (url: string) =>
+  /^(stun:stun|turns?:turn)\.cloudflare\.com(:\d+)?(\?|$)/.test(url) && !/:53(\?|$)/.test(url);
 
 function parseIceServers(body: unknown): IceServer[] | null {
   if (typeof body !== 'object' || body === null || !Array.isArray((body as { iceServers?: unknown }).iceServers)) {

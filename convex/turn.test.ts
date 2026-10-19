@@ -220,11 +220,34 @@ describe('turn', () => {
       ['an error status, even with a well-formed body', json(cloudflareBody(), 500)],
       ['only port 53 servers', json({ iceServers: [{ urls: ['turn:turn.cloudflare.com:53?transport=udp'] }] }, 201)],
       ['a url that is not a string', json({ iceServers: [{ urls: ['turn:turn.cloudflare.com:3478', 42] }] }, 201)],
+      ['only servers off Cloudflare', json({ iceServers: [{ urls: ['turn:relay.example.test:3478'], username: 'u', credential: 'c' }] }, 201)],
     ];
     for (const [, response] of cases) {
       vi.stubGlobal('fetch', vi.fn(async () => response));
       const { matchId, hostId } = await seedMatch(t, 'connecting');
       await expectConvexErrorAsync(t.action(api.turn.turnCredentials, { playerId: hostId, matchId }), 'TURN_UNAVAILABLE');
     }
+  });
+
+  it('keeps only Cloudflare STUN and TURN servers', async () => {
+    const body = {
+      iceServers: [
+        { urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.example.test:3478'] },
+        {
+          urls: ['turns:turn.cloudflare.com:5349?transport=tcp', 'turn:evil.turn.cloudflare.com.example.test:3478', 'https://turn.cloudflare.com/'],
+          username: 'synthetic-user-0001',
+          credential: 'synthetic-cred-0001',
+        },
+      ],
+    };
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(body), { status: 201 })));
+    const t = convexTest(schema, modules);
+    const { matchId, hostId } = await seedMatch(t, 'connecting');
+    expect(await t.action(api.turn.turnCredentials, { playerId: hostId, matchId })).toEqual({
+      iceServers: [
+        { urls: ['stun:stun.cloudflare.com:3478'] },
+        { urls: ['turns:turn.cloudflare.com:5349?transport=tcp'], username: 'synthetic-user-0001', credential: 'synthetic-cred-0001' },
+      ],
+    });
   });
 });
