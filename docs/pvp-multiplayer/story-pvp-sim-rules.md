@@ -2,13 +2,13 @@
 type: story
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: pvp-sim-rules
-status: in-progress
+status: staged
 branch: story/pvp-sim-rules
 worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/story-pvp-sim-rules
 created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
-version:             # set by `wi stage`
+version: 0.3.0
 review_approved:     # set by `wi accept`
 pr:                  # set by `wi pr`
 tag:                 # set by `wi release`; the tag sits on the branch's last commit
@@ -67,7 +67,7 @@ Teach the simulation to run a PvP round: two player tanks on opposing teams, no 
 | T6 | R3 | `crossed shells on one tick draw` | `src/game/pvp.test.ts` | Tanks placed so shells land the same tick → draw |
 | T7 | R4 | `own mine ignores owner, trips on opponent` | `src/game/pvp.test.ts` | Owner parked on armed mine for 2 s → no explosion; opponent enters → explosion |
 | T8 | R5 | `scoring counts wins and skips draws` | `src/game/match.test.ts` | Sequence win/draw/win → 2–0 for the winner, `round` advanced 3 times |
-| T9 | R5 | `first to three ends the match` | `src/game/match.test.ts` | Reaching 3 sets `matchWinner`; `applyRound` after that throws |
+| T9 | R5 | `first to three ends the match` | `src/game/match.test.ts` | Reaching 3 sets `winner`; `applyRound` after that throws; a result other than `p1`, `p2` or `null` throws |
 | T10 | R6 | `campaign games are untouched` | `src/game/sim.test.ts` (existing) | Item 1's T4 still passes; new assertion that campaign state has `mode 'campaign'`, `winner null` |
 
 **Not unit testable:** None.
@@ -94,3 +94,6 @@ Teach the simulation to run a PvP round: two player tanks on opposing teams, no 
 - 2026-10-18 — Planned.
 - 2026-10-18 — Plan approved.
 - 2026-10-18 — Started on branch story/pvp-sim-rules from origin/pvp-tank.
+- 2026-10-18 — Staging review: no HIGH/MED. Fixed: GameState.winner and applyRound share a runtime-checked PvpPlayer type (removes an unchecked cast item 9 would need; rejects junk results). T9 row now says winner. Added layout-size validation to item 9's protocol test plan (security review: parseLevel has no bounds).
+- 2026-10-18 — Test audit: 25 of 32 mutants killed; 3 equivalent, 1 unreachable guard, 1 untouched campaign code; fixed the 2 real gaps (PvP outcomeTime, exact spawn error) and both are now killed. Comment and import order corrected.
+- 2026-10-18 — Staged: verification passed; version 0.2.0 → 0.3.0; no changelog file.
