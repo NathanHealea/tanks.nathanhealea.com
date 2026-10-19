@@ -17,7 +17,7 @@ function p2(host: HostSession): TankState {
 }
 
 function sendInput(guest: Link, fields: Partial<InputMessage> & { seq: number }): void {
-  const message: InputMessage = { t: 'input', move: { x: 0, z: 0 }, aim: Math.PI / 4, fire: 0, mine: 0, ...fields };
+  const message: InputMessage = { t: 'input', round: 1, move: { x: 0, z: 0 }, aim: Math.PI / 4, fire: 0, mine: 0, ...fields };
   guest.send('state', encode(message));
   vi.advanceTimersByTime(0);
 }
@@ -162,4 +162,18 @@ describe('HostSession', () => {
     expect(onRoundOver).toHaveBeenCalledTimes(1);
     expect(onRoundOver).toHaveBeenCalledWith('p1');
   });
+
+  it("ignores input from another round, so a late packet cannot lock out the next round's guest", () => {
+    const [hostLink, guestLink] = createLinkPair();
+    const host = new HostSession(hostLink, OPEN, 1, { round: 2 });
+    // A round-1 packet with a high seq and fire count arrives after round 2 has begun.
+    sendInput(guestLink, { round: 1, seq: 1800, fire: 7, move: { x: 1, z: 0 } });
+    sendInput(guestLink, { round: 2, seq: 1, fire: 1, move: { x: 1, z: 0 } });
+    expect(p2ShotsOver(host, 5)).toBe(1);
+    expect(p2(host).pos.x).toBeGreaterThan(OPEN_P2_X());
+  });
 });
+
+function OPEN_P2_X(): number {
+  return -10 + 17 + 0.5;
+}

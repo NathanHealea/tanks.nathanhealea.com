@@ -11,7 +11,7 @@ import {
   type SnapshotMessage,
 } from './protocol';
 
-const INPUT: InputMessage = { t: 'input', seq: 4, move: { x: 0.6, z: -0.8 }, aim: 1.25, fire: 2, mine: 1 };
+const INPUT: InputMessage = { t: 'input', round: 1, seq: 4, move: { x: 0.6, z: -0.8 }, aim: 1.25, fire: 2, mine: 1 };
 
 const ROUND_START: RoundStartMessage = { t: 'roundStart', round: 1, rows: [...FALLBACK_ARENA], seed: 12345 };
 
@@ -164,6 +164,12 @@ describe('protocol', () => {
       withField(snap, ['mines', '0', 'pos', 'z'], 'NaN'),
     ]) {
       expect(parseHostMessage(raw), raw.slice(0, 120)).toBeNull();
+    }
+  });
+
+  it('input must carry a positive round', () => {
+    for (const round of [undefined, 0, 1.5, '1']) {
+      expect(parseGuestMessage(JSON.stringify({ ...INPUT, round }))).toBeNull();
     }
   });
 });

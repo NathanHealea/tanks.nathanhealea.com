@@ -4,6 +4,8 @@ import type { BulletState, GameEvent, GameState, MineState, TankState } from '..
 /** Guest to host, on `state`. fire and mine are cumulative press counts, so a dropped packet loses no shot. */
 export interface InputMessage {
   t: 'input';
+  /** Input still in flight from the last round must not reach the next round's host session. */
+  round: number;
   seq: number;
   move: { x: number; z: number };
   aim: number | null;
@@ -54,7 +56,7 @@ export function encode(message: InputMessage | HostMessage): string {
  */
 export function parseGuestMessage(raw: string): InputMessage | null {
   const m = parseObject(raw);
-  if (!m || m.t !== 'input') return null;
+  if (!m || m.t !== 'input' || !isPositiveInteger(m.round)) return null;
   if (!isCount(m.seq) || !isCount(m.fire) || !isCount(m.mine)) return null;
   const move = m.move;
   if (!isObject(move) || !isFiniteNumber(move.x) || !isFiniteNumber(move.z)) return null;
@@ -63,6 +65,7 @@ export function parseGuestMessage(raw: string): InputMessage | null {
   const scale = length > 1 ? 1 / length : 1;
   return {
     t: 'input',
+    round: m.round,
     seq: m.seq,
     move: { x: move.x * scale, z: move.z * scale },
     aim: m.aim,

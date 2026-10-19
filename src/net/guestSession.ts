@@ -87,7 +87,7 @@ export class GuestSession implements GameSession {
     this.ticksSinceInput = 0;
     this.link.send(
       'state',
-      encode({ t: 'input', seq: ++this.seq, move: input.move, aim: input.aim, fire: this.fires, mine: this.mines }),
+      encode({ t: 'input', round: this.round, seq: ++this.seq, move: input.move, aim: input.aim, fire: this.fires, mine: this.mines }),
     );
   }
 

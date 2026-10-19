@@ -90,7 +90,7 @@ export class HostSession implements GameSession {
 
   private onGuestInput(raw: string): void {
     const message = parseGuestMessage(raw);
-    if (!message || message.seq <= this.lastSeq) return;
+    if (!message || message.round !== this.round || message.seq <= this.lastSeq) return;
     this.lastSeq = message.seq;
     this.guest = { move: message.move, aim: message.aim, fire: false, mine: false };
     if (message.fire > this.firesSeen) {
