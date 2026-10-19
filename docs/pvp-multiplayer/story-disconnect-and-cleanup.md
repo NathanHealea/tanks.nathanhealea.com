@@ -9,7 +9,7 @@ created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
 version: 0.10.0
-review_approved:     # set by `wi accept`
+review_approved: 2026-10-19
 pr:                  # set by `wi pr`
 tag:                 # set by `wi release`; the tag sits on the branch's last commit
 ---
@@ -106,3 +106,4 @@ Matches have `status` and `endReason` (item 2), and Convex learns of round resul
 - 2026-10-19 — Test audit: 20 mutants, 7 survived; 5 killed by new tests, 2 left (createdAt fallback with no guestSeen, forfeit as an end reason — neither is written today). T8 row reworded to the server-sourced end. 415 tests pass. Waiting on manual checks before stage.
 - 2026-10-19 — User 2026-10-19: approved the 5-minute waiting-host idle limit, and reported 'the game worked' after manual testing. Individual AC1–AC4 outcomes, iOS backgrounding and the function-call count were not reported separately.
 - 2026-10-19 — Staged: verification passed; version 0.9.0 → 0.10.0; no changelog file.
+- 2026-10-19 — Review approved.
