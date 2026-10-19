@@ -2,7 +2,7 @@
 type: story
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: pvp-map-generator
-status: staged
+status: released
 branch: story/pvp-map-generator
 worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/story-pvp-map-generator
 created: 2026-10-18
@@ -11,7 +11,7 @@ commit_type:         # optional override for the release subject type (default: 
 version: 0.4.0
 review_approved: 2026-10-18
 pr:                  # set by `wi pr`
-tag:                 # set by `wi release`; the tag sits on the branch's last commit
+tag: v0.4.0
 ---
 
 # Random symmetric PvP arena generator
@@ -98,3 +98,4 @@ Generate a new random arena for every PvP round from a seed. Arenas are 20×14 l
 - 2026-10-18 — Staging review: code review LOW (seed truncation) fixed; test audit HIGH (connectivity test shared the generator's reachable) fixed with an independent flood fill; seed range made unsigned-only; fallback copy, cork presence and seed edges now tested (T11, T12). Items 6 and 7 plans updated to create unsigned 32-bit seeds.
 - 2026-10-18 — Staged: verification passed; version 0.3.0 → 0.4.0; no changelog file.
 - 2026-10-18 — Review approved.
+- 2026-10-18 — Released 0.4.0 as v0.4.0.
