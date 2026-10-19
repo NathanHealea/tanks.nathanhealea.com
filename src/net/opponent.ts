@@ -1,11 +1,11 @@
 import type { ConvexReactClient } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
-import { iceServersFromEnv } from './iceServers';
+import { iceServersFromEnv, withTurn } from './iceServers';
 import type { Link } from './link';
-import { connectPeer, type SignalTransport } from './peer';
+import { connectPeer, PeerError, type SignalTransport } from './peer';
 
-type ConvexLike = Pick<ConvexReactClient, 'mutation' | 'watchQuery'>;
+type ConvexLike = Pick<ConvexReactClient, 'mutation' | 'watchQuery' | 'action'>;
 
 /** WebRTC setup messages for one match, carried by the Convex signaling functions. */
 export function convexSignals(convex: ConvexLike, matchId: Id<'matches'>, playerId: string): SignalTransport {
@@ -33,14 +33,24 @@ export async function connectToOpponent(options: {
   matchId: Id<'matches'>;
   playerId: string;
   role: 'host' | 'guest';
+  kind: 'quick' | 'private';
   iceServers?: RTCIceServer[];
   createPeerConnection?: (config: RTCConfiguration) => RTCPeerConnection;
 }): Promise<Link> {
-  const { convex, matchId, playerId, role } = options;
+  const { convex, matchId, playerId, role, kind } = options;
+  const base = options.iceServers ?? iceServersFromEnv(import.meta.env.VITE_ICE_SERVERS);
+  const turn = await withTurn(base, () => convex.action(api.turn.turnCredentials, { playerId, matchId }));
+  // A quick match is against a stranger: without a relay it does not connect at all, rather than reveal an address
+  // (R6). Failing before the peer connection exists means no candidate is ever gathered or sent.
+  if (kind === 'quick' && !turn.relay) {
+    console.error('Quick match needs a TURN relay and none is available');
+    throw new PeerError('CONNECT_FAILED');
+  }
   const link = await connectPeer({
     role,
     signals: convexSignals(convex, matchId, playerId),
-    iceServers: options.iceServers ?? iceServersFromEnv(import.meta.env.VITE_ICE_SERVERS),
+    iceServers: turn.iceServers,
+    iceTransportPolicy: kind === 'quick' ? 'relay' : 'all',
     createPeerConnection: options.createPeerConnection,
   });
   if (role === 'host') {

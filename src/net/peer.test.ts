@@ -65,6 +65,28 @@ describe('connectPeer', () => {
     guestLink.close();
   });
 
+  it('the ICE transport policy reaches the connection config', async () => {
+    const rtc = createFakeRtcPair();
+    const bus = createSignalBus();
+    const createHost = vi.fn(rtc.createHost);
+    const createGuest = vi.fn(rtc.createGuest);
+
+    const links = await Promise.all([
+      connectPeer({ role: 'host', signals: bus.host, iceServers: ICE_SERVERS, createPeerConnection: createHost }),
+      connectPeer({
+        role: 'guest',
+        signals: bus.guest,
+        iceServers: ICE_SERVERS,
+        iceTransportPolicy: 'relay',
+        createPeerConnection: createGuest,
+      }),
+    ]);
+
+    expect(createHost).toHaveBeenCalledWith({ iceServers: ICE_SERVERS, iceTransportPolicy: 'all' });
+    expect(createGuest).toHaveBeenCalledWith({ iceServers: ICE_SERVERS, iceTransportPolicy: 'relay' });
+    for (const link of links) link.close();
+  });
+
   it('version mismatch fails both sides', async () => {
     const rtc = createFakeRtcPair();
     const bus = createSignalBus();

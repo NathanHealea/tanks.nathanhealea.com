@@ -29,6 +29,8 @@ export interface PeerOptions {
   role: 'host' | 'guest';
   signals: SignalTransport;
   iceServers: RTCIceServer[];
+  /** 'relay' sends everything through TURN, so the opponent never learns this player's address. */
+  iceTransportPolicy?: RTCIceTransportPolicy;
   createPeerConnection?: (config: RTCConfiguration) => RTCPeerConnection;
   timeoutMs?: number;
   protocolVersion?: number;
@@ -43,6 +45,7 @@ export function connectPeer(options: PeerOptions): Promise<Link> {
     role,
     signals,
     iceServers,
+    iceTransportPolicy = 'all',
     createPeerConnection = (config) => new RTCPeerConnection(config),
     timeoutMs = CONNECT_TIMEOUT_MS,
     protocolVersion = PROTOCOL_VERSION,
@@ -51,7 +54,7 @@ export function connectPeer(options: PeerOptions): Promise<Link> {
   return new Promise<Link>((resolve, reject) => {
     let pc: RTCPeerConnection;
     try {
-      pc = createPeerConnection({ iceServers });
+      pc = createPeerConnection({ iceServers, iceTransportPolicy });
     } catch (err) {
       // An unusable ICE config (bad URL, TURN without credentials) throws here; callers only handle PeerError.
       console.error('Creating the WebRTC connection failed', err);

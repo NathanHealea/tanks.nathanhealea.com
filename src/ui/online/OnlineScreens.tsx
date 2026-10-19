@@ -3,12 +3,9 @@ import type { JoinError } from '../../net/joinErrors';
 import { buildJoinUrl, formatCode, normalizeCode } from '../../net/share';
 import { joinErrorMessage, spokenCode } from './messages';
 
-/**
- * Online play connects the two browsers directly. Quick matches move behind a relay before public launch
- * (turn-relay); this line changes with it so it never claims protection that does not exist yet.
- */
+/** R11's wording, true once quick matches are relay-only (turn-relay R6); keep it in step with the README. */
 export const SHARING_NOTICE =
-  "Online play connects you straight to the other player, so each of you can see the other's IP address.";
+  "Private matches connect you straight to your friend, so each of you can see the other's IP address. Quick matches go through a relay, so strangers can't see it.";
 
 /** A modal card in the campaign's overlay style, holding any number of actions. */
 export function Card({ title, children }: { title: string; children: ReactNode }) {
