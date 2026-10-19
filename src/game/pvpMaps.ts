@@ -44,8 +44,9 @@ export function generatePvpMap(seed: number, maxAttempts = 200): string[] {
 /** Each round of a match gets its own arena, derived from the match seed Convex chose. */
 export function roundSeed(matchSeed: number, round: number): number {
   // The hash keeps only 32 bits, so a fractional or larger seed would quietly collapse every match onto the same arenas.
-  if (!Number.isInteger(matchSeed) || matchSeed < -(2 ** 31) || matchSeed >= 2 ** 32) {
-    throw new Error(`Match seed must be a 32-bit integer, got ${matchSeed}`);
+  // One range only: accepting signed and unsigned would let seeds 2^32 apart share arenas.
+  if (!Number.isInteger(matchSeed) || matchSeed < 0 || matchSeed >= 2 ** 32) {
+    throw new Error(`Match seed must be an unsigned 32-bit integer, got ${matchSeed}`);
   }
   return Math.floor(mulberry32((matchSeed ^ Math.imul(round + 1, 0x9e3779b9)) | 0)() * 4294967296) | 0;
 }
