@@ -55,17 +55,19 @@ The `ttl` requested is 3600 s (R1). A match lasts minutes; credentials are only 
 - **R1** — `turnCredentials({ playerId, matchId })` returns ICE server entries with a username and credential valid for no more than 1 hour, only to a player in that match while it is `connecting` or `playing`.
 - **R2** — The Cloudflare key ID and token are read from Convex environment variables, never from client code or the repo, and never appear in responses, logs or errors.
 - **R3** — Each player can obtain credentials at most twice per match; further calls are rejected.
-- **R4** — If the action fails or times out after 3 seconds, the client connects with STUN only and the connection proceeds as in item 8.
+- **R4** — If the action fails, or gives no TURN login within 10 seconds, the match does not connect: nothing is sent to the opponent and the player is told online matches can't start right now. There is no STUN-only fallback (user decision 2026-10-19: never give information about one player to another).
 - **R5** — With TURN available, a pair where one side blocks UDP entirely connects over TURN on 5349/tcp or 443.
-- **R6** — Quick matches set `iceTransportPolicy: 'relay'` so neither player's IP address reaches the other; private matches use all candidates. Required before public launch (user decision, 2026-10-18).
+- **R6** — Every match, quick and private, sets `iceTransportPolicy: 'relay'`, so no player's IP address reaches another (user decisions 2026-10-18 for quick matches, 2026-10-19 extended to private matches).
+- **R7** — At most 20 matches start per hour across the site, so relay traffic stays inside Cloudflare's free 1,000 GB a month ("The first 1,000 GB each month is free", shared by SFU and TURN; [Realtime pricing](https://developers.cloudflare.com/realtime/pricing/)). Estimate, not measured: ~60 KB/s per player (item 9) × ~6-minute matches ≈ 22 MB per player per match, ≈ 640 GB a month at the cap. When the hour is full, a quick-match player stays queued and sees they are in line, and is paired as soon as a slot opens; joining a private code shows the same and retries every 15 s; a rematch asks to try again in a few minutes. A count cannot bound deliberate bandwidth abuse with a minted credential: set a Cloudflare billing notification as well (user decision 2026-10-19).
 
 ## Acceptance criteria
 
 - **AC1** (R1) — Given C is not in the match, when C calls `turnCredentials` for it, then it is rejected and Cloudflare is not called.
 - **AC2** (R2) — Given the deployed site, when its JavaScript bundle is searched, then neither TURN secret appears.
-- **AC3** (R4) — Given the Cloudflare API is unreachable, when two players connect, then they connect with STUN as before.
+- **AC3** (R4) — Given the Cloudflare API is unreachable, when two players match, then neither connects, no signal is sent, and both see that online matches can't start right now.
 - **AC4** (R5) — Given one player on a network that blocks UDP, when they match, then they connect and play.
-- **AC5** (R6) — Given relay-only quick matches, when a match connects, then `chrome://webrtc-internals` on each side shows only `relay` candidates for the remote peer.
+- **AC5** (R6) — Given any match, quick or private, when it connects, then `chrome://webrtc-internals` on each side shows only `relay` candidates for the remote peer.
+- **AC6** (R7) — Given 20 matches have started this hour, when two more players search, then both see they are in line, and they are paired when the next hour begins.
 
 ## Test plan
 
@@ -76,6 +78,8 @@ The `ttl` requested is 3600 s (R1). A match lasts minutes; credentials are only 
 | T3 | R3 | `credentials are capped per player` | `convex/turn.test.ts` | Third call by the same player for the same match is rejected |
 | T4 | R4 | `client falls back to stun` | `src/net/iceServers.test.ts` | Action rejects or exceeds 3 s → returned list is the STUN default |
 | T5 | R6 | `relay policy follows match kind` | `src/net/peer.test.ts` | Quick match → `iceTransportPolicy 'relay'`; private → `'all'` |
+| T6 | R7 | `match starts are capped per hour` | `convex/relayBudget.test.ts` | 20 pairings in an hour succeed, the 21st leaves both queued as full; a heartbeat in the next hour pairs them; joinPrivate and the creating rematch request refuse with BUSY at the cap and use no slot; old budget rows are swept |
+| T7 | R7 | `a full hour keeps the search waiting` | `src/net/quickMatch.test.ts` | join or heartbeat reporting full → state 'full'; later not full → 'searching'; matched from either; cancel from 'full' leaves the queue |
 
 **Not unit testable:** R5 and AC4, AC5 need real networks. Verify by blocking outbound UDP on one machine (macOS `pf` rule or a restrictive network) and checking `chrome://webrtc-internals`. AC2: `grep` the `dist/` bundle for the sentinel values used in the dev deployment.
 
@@ -85,6 +89,7 @@ The `ttl` requested is 3600 s (R1). A match lasts minutes; credentials are only 
 2. [x] Add the `turnCredentials` action with membership check, per-player cap and secret handling — touches `convex/turn.ts`, `convex/schema.ts`, `convex/turn.test.ts` — tests T1, T2, T3
 3. [x] Fetch credentials before connecting, with the STUN fallback — touches `src/net/iceServers.ts`, `src/net/iceServers.test.ts`, `src/net/peer.ts` — tests T4
 4. [x] Add relay-only for quick matches, if approved — touches `src/net/peer.ts`, `src/net/peer.test.ts` — tests T5
+5. [x] Cap match starts per hour and show players they are in line — touches `convex/lib/relayBudget.ts`, `convex/matchmaking.ts`, `convex/privateMatch.ts`, `convex/matches.ts`, `convex/sweep.ts`, `src/net/quickMatch.ts`, `src/ui/online/*` — tests T6, T7
 
 **Must not change:** `connectPeer`'s failure codes and behavior when TURN is absent.
 
@@ -110,3 +115,6 @@ The `ttl` requested is 3600 s (R1). A match lasts minutes; credentials are only 
 - 2026-10-19 — Review cycle 1 fixes (b4f7c74, 701ac62, aed4647): only Cloudflare STUN/TURN hosts kept; a usable response needs a TURN login; quick matches without a relay fail with their own reason and message (RELAY_UNAVAILABLE, outside PeerErrorCode) and wait up to 10 s for TURN. Open for the user: fail-closed quick matches vs R4's wording; credential farming (unlimited matches → unlimited 1 h TURN logins billed to the account) needs a global/time-window cap — rate limiting was deferred to pvp-deploy-docs.
 - 2026-10-19 — Review cycle 2: earlier findings resolved. Noted, not changed (LOW): with a slow Cloudflare the 10 s quick-match TURN wait leaves the slower side as little as ~5 s before the faster side's 15 s connect timeout; relay setup is normally a few seconds.
 - 2026-10-19 — Test audit: 17 mutants, 10 survived before; all now killed by new tests (wait times, TURN-login parts, regex anchors, type checks, key id escaping). Gap: the RelayUnavailableError → RELAY_UNAVAILABLE mapping in OnlinePlay has no test (no component tooling). 431 tests pass.
+- 2026-10-19 — User decision 2026-10-19: 'never give information about one player to another'. Quick matches fail closed without a relay; R4 amended so the STUN fallback applies to private matches only.
+- 2026-10-19 — User decision 2026-10-19: private matches are relay-only too. R4, R6, AC3, AC5 rewritten; no STUN-only fallback anywhere; SHARING_NOTICE is now 'Matches go through a relay, so other players can't see your IP address.' (supersedes pvp-match-screens R11's private-match wording; pvp-deploy-docs README must match). Online play needs the two TURN env vars in every deployment. withTurn keeps its 3 s default (T4) but the app passes 10 s.
+- 2026-10-19 — User decision 2026-10-19: cap relay use to stay inside Cloudflare's free tier, and tell waiting players they are in line. Added R7, AC6, T6, T7 and step 5 (20 match starts per hour, enforced where matches are made).
