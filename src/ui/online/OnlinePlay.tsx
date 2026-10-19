@@ -9,13 +9,15 @@ import type { Link } from '../../net/link';
 import { GuestMatch, HostMatch } from '../../net/netMatch';
 import { connectToOpponent } from '../../net/opponent';
 import { PeerError } from '../../net/peer';
+import { LinkWatch, type LinkHealth } from '../../net/silence';
 import { usePrivateMatch } from '../../net/usePrivateMatch';
 import { useQuickMatch } from '../../net/useQuickMatch';
+import { leaveWhenHidden } from '../../net/visibility';
 import type { HudSnapshot } from '../../render/Scene';
 import { TouchControls } from '../TouchControls';
 import { initialScreen, reduce, type OnlineAction, type OnlineEffect, type OnlineScreen } from './flow';
-import { Connecting, ConnectFailed, Countdown, LeaveConfirm, MatchResult, PvpHud } from './MatchScreens';
-import { rematchErrorMessage, roundResultText, scoreText } from './messages';
+import { Connecting, ConnectFailed, Countdown, Ended, LeaveConfirm, LinkLostBanner, MatchResult, PvpHud } from './MatchScreens';
+import { endedText, linkLostText, rematchErrorMessage, roundResultText, scoreText } from './messages';
 import { JoinWithCode, OnlineMenu, PrivateWaiting, SEARCH_FAILED, Searching, Unavailable } from './OnlineScreens';
 
 const isTouch = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
@@ -32,6 +34,13 @@ interface Props {
 }
 
 type Outcome = 'won' | 'lost' | 'draw';
+
+const MATCH_BEAT_MS = 5000;
+// A waiting code beats less often: it only has to outlive a closed tab by less than its 10-minute expiry (R9).
+const WAITING_BEAT_MS = 10_000;
+// reportLost is usually called by the player whose network failed, and Convex queues mutations while offline, so the
+// answer may never come; after this long the match is shown as having no result.
+const REPORT_WAIT_MS = 5000;
 
 /**
  * Online play from the menu to the match result. The flow reducer decides the screens; this component runs the
@@ -54,6 +63,12 @@ export function OnlinePlay(props: Props) {
   const [error, setError] = useState<string | null>(null);
   const [localPlayer, setLocalPlayer] = useState<'p1' | 'p2'>('p1');
   const [codeExpired, setCodeExpired] = useState(false);
+  const [linkHealth, setLinkHealth] = useState<LinkHealth>({ state: 'ok' });
+  const healthRef = useRef<LinkHealth>({ state: 'ok' });
+  const watchRef = useRef<LinkWatch | null>(null);
+  // myMatch reports only an active match, so this is exactly the match to leave on Leave or when the page goes.
+  const activeMatchId = useRef<Id<'matches'> | null>(null);
+  activeMatchId.current = priv.match?.id ?? null;
   const lastCode = useRef<{ code?: string; expiresAt?: number }>({});
   const matchRef = useRef<{ id: Id<'matches'>; link: Link | null; dispose(): void } | null>(null);
   const sessionRef = useRef<GameSession | null>(null);
@@ -76,7 +91,15 @@ export function OnlinePlay(props: Props) {
   // next round's announcement instead of being replaced by it before it is spoken.
   const pendingResult = useRef<string | null>(null);
 
+  const stopWatch = useCallback(() => {
+    watchRef.current?.dispose();
+    watchRef.current = null;
+    healthRef.current = { state: 'ok' };
+    setLinkHealth({ state: 'ok' });
+  }, []);
+
   const endConnection = useCallback(() => {
+    stopWatch();
     matchRef.current?.dispose();
     matchRef.current?.link?.close();
     matchRef.current = null;
@@ -136,6 +159,7 @@ export function OnlinePlay(props: Props) {
       setLastResult(outcome);
       setScore({ you, them });
       if (over) {
+        stopWatch();
         dispatch({ type: 'matchEnd', you, them });
         sessionRef.current = null;
         props.onSession(null);
@@ -145,12 +169,25 @@ export function OnlinePlay(props: Props) {
       }
     };
     // Released in dispose, before a rematch closes this link, so its close is not taken for a lost connection.
+    // Once play has started a close is left to the watch: the opponent may have left, or only the link may have died,
+    // and only Convex can tell which.
     const offClose = link.onClose(() => {
-      if (['connecting', 'countdown', 'playing', 'roundResult'].includes(screenRef.current.name)) {
+      if (screenRef.current.name === 'connecting') {
         announce('Connection to your opponent was lost.');
         endConnection();
         dispatch({ type: 'connectFailed', reason: 'CONNECT_FAILED' });
       }
+    });
+    watchRef.current = new LinkWatch(link, {
+      onHealth: (health) => {
+        const was = healthRef.current.state;
+        healthRef.current = health;
+        setLinkHealth(health);
+        if (health.state === 'lost' && was === 'ok') announce(linkLostText(health.secondsLeft));
+        if (health.state === 'ok' && was === 'lost') announce('Connection restored.');
+      },
+      onLost: () => settleLostLink(match.id, match.role),
+      onBye: () => dispatch({ type: 'opponentLeft' }),
     });
     if (match.role === 'host') {
       setLocalPlayer('p1');
@@ -188,6 +225,31 @@ export function OnlinePlay(props: Props) {
       };
     }
   };
+
+  function settleLostLink(matchId: Id<'matches'>, role: 'host' | 'guest') {
+    const giveUp = setTimeout(() => dispatch({ type: 'linkLost', result: 'none' }), REPORT_WAIT_MS);
+    convex
+      .mutation(api.matches.reportLost, { playerId: me, matchId })
+      .then((outcome) => {
+        clearTimeout(giveUp);
+        const result = outcome.winner === null ? 'none' : outcome.winner === role ? 'won' : 'lost';
+        dispatch({ type: 'linkLost', result });
+      })
+      .catch((err) => {
+        clearTimeout(giveUp);
+        console.error('Reporting the lost connection failed', err);
+        dispatch({ type: 'linkLost', result: 'none' });
+      });
+  }
+
+  function leaveOnServer() {
+    watchRef.current?.bye();
+    const id = activeMatchId.current;
+    if (!id) return;
+    convex.mutation(api.matches.leave, { playerId: me, matchId: id }).catch((err) => {
+      console.error('Leaving the match failed', err);
+    });
+  }
 
   function newCode() {
     lastCode.current = {};
@@ -237,11 +299,17 @@ export function OnlinePlay(props: Props) {
         break;
       }
       case 'leaveMatch':
+        leaveOnServer();
+        endConnection();
+        break;
+      case 'endLink':
         endConnection();
         break;
     }
   }
   runEffectRef.current = runEffect;
+  const leaveOnServerRef = useRef(leaveOnServer);
+  leaveOnServerRef.current = leaveOnServer;
 
   // The server reporting a connecting match is what moves every waiting screen on to connecting.
   useEffect(() => {
@@ -306,6 +374,37 @@ export function OnlinePlay(props: Props) {
 
   const inMatch = ['countdown', 'playing', 'roundResult'].includes(screen.name);
 
+  useEffect(() => {
+    if (screen.name === 'ended') announce(endedText(screen.reason));
+  }, [screen, announce]);
+
+  useEffect(() => {
+    if (!inMatch) return;
+    return leaveWhenHidden(document, () => dispatch({ type: 'away' }));
+  }, [inMatch, dispatch]);
+
+  // Presence for Convex: a match beats while connecting or playing, a host's waiting code less often.
+  const beatMatch = priv.match && ['waiting', 'connecting', 'playing'].includes(priv.match.status) ? priv.match : null;
+  const beatId = beatMatch?.id ?? null;
+  const beatMs = beatMatch?.status === 'waiting' ? WAITING_BEAT_MS : MATCH_BEAT_MS;
+  useEffect(() => {
+    if (!beatId) return;
+    const beat = () =>
+      convex.mutation(api.matches.heartbeat, { playerId: me, matchId: beatId }).catch((err) => {
+        console.error('Match heartbeat failed', err);
+      });
+    void beat();
+    const timer = setInterval(beat, beatMs);
+    return () => clearInterval(timer);
+  }, [beatId, beatMs, convex, me]);
+
+  // Best effort: the page may be gone before the request lands; the opponent's silence check is the real guarantee.
+  useEffect(() => {
+    const onHide = () => leaveOnServerRef.current();
+    window.addEventListener('pagehide', onHide);
+    return () => window.removeEventListener('pagehide', onHide);
+  }, []);
+
   // A match that ends or drops with Leave match? open must not bring it back at the next match's countdown.
   useEffect(() => {
     if (!inMatch) setLeaveOpen(false);
@@ -367,6 +466,7 @@ export function OnlinePlay(props: Props) {
           onToggleMute={props.onToggleMute}
         />
       )}
+      {inMatch && linkHealth.state === 'lost' && <LinkLostBanner secondsLeft={linkHealth.secondsLeft} />}
       {isTouch && screen.name === 'playing' && !leaveOpen && <TouchControls />}
 
       {screen.name === 'menu' && (
@@ -406,6 +506,7 @@ export function OnlinePlay(props: Props) {
       {screen.name === 'connecting' && <Connecting onCancel={() => dispatch({ type: 'leave' })} />}
       {screen.name === 'connectFailed' && <ConnectFailed reason={screen.reason} onBack={() => dispatch({ type: 'back' })} />}
       {screen.name === 'countdown' && <Countdown round={screen.round} secondsLeft={countdown} lastResult={lastResult} />}
+      {screen.name === 'ended' && <Ended reason={screen.reason} onBack={() => dispatch({ type: 'back' })} />}
       {screen.name === 'matchResult' && (
         <MatchResult
           won={screen.won}

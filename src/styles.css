@@ -377,6 +377,17 @@ kbd {
   line-height: 1;
 }
 
+.link-lost {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: calc(100vw - 32px);
+  text-align: center;
+  font-weight: 700;
+  pointer-events: none;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

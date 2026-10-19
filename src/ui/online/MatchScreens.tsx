@@ -4,7 +4,8 @@ import type { PeerErrorCode } from '../../net/peer';
 import type { HudSnapshot } from '../../render/Scene';
 import { Pips } from '../Hud';
 import { Card } from './OnlineScreens';
-import { colorName, connectFailedMessage, matchResultText, roundResultText, scoreText } from './messages';
+import type { EndReason } from './flow';
+import { colorName, connectFailedMessage, endedText, linkLostText, matchResultText, roundResultText, scoreText } from './messages';
 
 const TOP_BAR_HEIGHT = 44;
 const TOP_BAR_GAP = 6;
@@ -38,6 +39,25 @@ export function Countdown(props: { round: number; secondsLeft: number; lastResul
       {props.lastResult && <p className="countdown-result">{roundResultText(props.lastResult)}</p>}
       <p className="countdown-round">Round {props.round}</p>
       <p className="countdown-number">{Math.max(1, Math.ceil(props.secondsLeft))}</p>
+    </div>
+  );
+}
+
+export function Ended({ reason, onBack }: { reason: EndReason; onBack(): void }) {
+  return (
+    <Card title={endedText(reason)}>
+      <button type="button" className="primary" onClick={onBack} autoFocus>
+        Back to online menu
+      </button>
+    </Card>
+  );
+}
+
+/** Over the arena, not a dialog: play may resume at any moment. Announced once on appearing, not every second. */
+export function LinkLostBanner({ secondsLeft }: { secondsLeft: number }) {
+  return (
+    <div className="link-lost panel" aria-hidden="true">
+      {linkLostText(secondsLeft)}
     </div>
   );
 }
