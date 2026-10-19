@@ -1,6 +1,13 @@
 import { PVP_COLS, PVP_ROWS } from '../game/pvpMaps';
 import type { BulletState, GameEvent, GameState, MineState, TankState } from '../game/types';
 
+// A snapshot can never legitimately exceed these; larger ones are a hostile host trying to stall the guest.
+const MAX_TANKS = 2;
+const MAX_BULLETS = 64;
+const MAX_MINES = 32;
+const MAX_EVENTS = 64;
+const MAX_BROKEN = 20 * 14;
+
 /** Guest to host, on `state`. fire and mine are cumulative press counts, so a dropped packet loses no shot. */
 export interface InputMessage {
   t: 'input';
@@ -90,10 +97,9 @@ export function parseHostMessage(raw: string): HostMessage | null {
   }
   if (m.t === 'snap') {
     if (!isPositiveInteger(m.round) || !isFiniteNumber(m.tick) || !isFiniteNumber(m.time)) return null;
-    if (!Array.isArray(m.tanks) || !m.tanks.every(isTank)) return null;
-    if (!Array.isArray(m.bullets) || !m.bullets.every(hasPos)) return null;
-    if (!Array.isArray(m.mines) || !m.mines.every(hasPos)) return null;
-    if (!Array.isArray(m.events) || !Array.isArray(m.broken) || !m.broken.every(isCount)) return null;
+    if (!isList(m.tanks, MAX_TANKS, isTank) || !isList(m.bullets, MAX_BULLETS, isBullet)) return null;
+    if (!isList(m.mines, MAX_MINES, isMine) || !isList(m.events, MAX_EVENTS, isEvent)) return null;
+    if (!isList(m.broken, MAX_BROKEN, isCount)) return null;
     if (!(m.outcome === null || m.outcome === 'won' || m.outcome === 'lost' || m.outcome === 'draw')) return null;
     if (!isResult(m.winner)) return null;
     return m as unknown as SnapshotMessage;
@@ -142,6 +148,43 @@ function isLayout(value: unknown): value is string[] {
 
 function hasPos(value: unknown): boolean {
   return isObject(value) && isObject(value.pos) && isFiniteNumber(value.pos.x) && isFiniteNumber(value.pos.z);
+}
+
+function isList(value: unknown, max: number, item: (entry: unknown) => boolean): boolean {
+  return Array.isArray(value) && value.length <= max && value.every(item);
+}
+
+function isBullet(value: unknown): boolean {
+  return (
+    hasPos(value) && isObject(value) && isFiniteNumber(value.id) && isObject(value.vel) &&
+    isFiniteNumber(value.vel.x) && isFiniteNumber(value.vel.z)
+  );
+}
+
+function isMine(value: unknown): boolean {
+  return hasPos(value) && isObject(value) && isFiniteNumber(value.id) && isFiniteNumber(value.age);
+}
+
+/** Every field the effects and sound code reads, per event type; an unknown type is rejected. */
+function isEvent(value: unknown): boolean {
+  if (!hasPos(value) || !isObject(value)) return false;
+  switch (value.type) {
+    case 'fire':
+      return isFiniteNumber(value.angle) && typeof value.owner === 'string';
+    case 'pop':
+      return typeof value.color === 'string' && typeof value.tankId === 'string';
+    case 'wallBreak':
+      return isCount(value.col) && isCount(value.row);
+    case 'fizzle':
+    case 'bounce':
+    case 'bulletEnd':
+    case 'clash':
+    case 'mineDrop':
+    case 'explode':
+      return true;
+    default:
+      return false;
+  }
 }
 
 function isTank(value: unknown): boolean {

@@ -172,4 +172,25 @@ describe('protocol', () => {
       expect(parseGuestMessage(JSON.stringify({ ...INPUT, round }))).toBeNull();
     }
   });
+
+  it('rejects snapshots a hostile host could use to crash or stall the guest', () => {
+    const SNAP = snapshot();
+    const bad: Record<string, unknown>[] = [
+      { events: [{ type: 'explode' }] },
+      { events: [{ type: 'fire', pos: { x: 0, z: 0 }, owner: 'p1' }] },
+      { events: [{ type: 'teleport', pos: { x: 0, z: 0 } }] },
+      { events: [{ type: 'pop', pos: { x: 0, z: 0 }, tankId: 'p1' }] },
+      { bullets: [{ id: 1, pos: { x: 0, z: 0 } }] },
+      { bullets: [{ pos: { x: 0, z: 0 }, vel: { x: 1, z: 0 } }] },
+      { mines: [{ id: 1, pos: { x: 0, z: 0 } }] },
+      { bullets: Array.from({ length: 65 }, (_, id) => ({ id, pos: { x: 0, z: 0 }, vel: { x: 1, z: 0 } })) },
+      { events: Array.from({ length: 65 }, () => ({ type: 'bounce', pos: { x: 0, z: 0 } })) },
+      { tanks: [...SNAP.tanks, ...SNAP.tanks] },
+    ];
+    for (const change of bad) {
+      expect(parseHostMessage(JSON.stringify({ ...SNAP, ...change })), JSON.stringify(change).slice(0, 80)).toBeNull();
+    }
+    const fine = { ...SNAP, events: [{ type: 'fire', pos: { x: 0, z: 0 }, angle: 1, owner: 'p1' }] };
+    expect(parseHostMessage(JSON.stringify(fine))).not.toBeNull();
+  });
 });
