@@ -45,7 +45,7 @@ Item 8 connects with STUN only, so pairs behind symmetric NATs or UDP-blocking f
 - **R3** — Each player can obtain credentials at most twice per match; further calls are rejected.
 - **R4** — If the action fails or times out after 3 seconds, the client connects with STUN only and the connection proceeds as in item 8.
 - **R5** — With TURN available, a pair where one side blocks UDP entirely connects over TURN on 5349/tcp or 443.
-- **R6** — If relay-only mode is approved: quick matches set `iceTransportPolicy: 'relay'` so neither player's IP address reaches the other; private matches use all candidates.
+- **R6** — Quick matches set `iceTransportPolicy: 'relay'` so neither player's IP address reaches the other; private matches use all candidates. Required before public launch (user decision, 2026-10-18).
 
 ## Acceptance criteria
 
@@ -82,7 +82,7 @@ Item 8 connects with STUN only, so pairs behind symmetric NATs or UDP-blocking f
 
 - Never put TURN credentials in `VITE_ICE_SERVERS`: every `VITE_` variable is compiled into the public bundle, so anyone could lift them and use the relay. Keep that variable for STUN only; TURN credentials come from the `turnCredentials` action (raised in the webrtc-connection security review).
 
-- **Decision needed: relay-only quick matches.** Hides IP addresses from strangers, but every quick match then pays TURN bandwidth: about 30–60 KB/s per direction, roughly 100–200 MB per match-hour, about $0.01 per match-hour at $0.05/GB (inferred from item 9's snapshot estimate; measure).
+- **Decided (2026-10-18): relay-only quick matches are required before public launch** (R6 is no longer conditional), so strangers never see each other's IP addresses. Cost estimate: Hides IP addresses from strangers, but every quick match then pays TURN bandwidth: about 30–60 KB/s per direction, roughly 100–200 MB per match-hour, about $0.01 per match-hour at $0.05/GB (inferred from item 9's snapshot estimate; measure).
 - **Decision needed: ship before launch or not.** Item 8's connectivity matrix decides.
 - Cost runaway: anyone can create matches and request credentials. The per-match cap (R3) and the membership check bound it, but set a billing alert in Cloudflare.
 - Credential minting API details are unverified until step 1.

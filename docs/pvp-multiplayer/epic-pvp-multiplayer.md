@@ -89,7 +89,7 @@ Status column by matching the Slug column, so keep slugs exact.
 | 5 | story | pvp-map-generator | Random symmetric PvP arena generator | R5, R9 | 1, 4 | released |
 | 6 | story | random-matchmaking | Random matchmaking queue | R2, R11 | 2, 3 | released |
 | 7 | story | private-match-codes | Private matches with share codes and links | R3, R11 | 2, 3 | released |
-| 8 | story | webrtc-connection | Peer-to-peer connection over Convex signaling | R4, R11 | 6 | planned |
+| 8 | story | webrtc-connection | Peer-to-peer connection over Convex signaling | R4, R11 | 6 | released |
 | 9 | story | host-authoritative-netcode | Host-authoritative networked game session | R4, R6 | 4, 5, 8 | planned |
 | 10 | story | pvp-match-screens | Online menus, PvP HUD and match flow | R2, R3, R6, R9, R10 | 6, 7, 9 | planned |
 | 11 | story | disconnect-and-cleanup | Disconnects, forfeits and stale-data cleanup | R7, R8 | 9, 10 | planned |
@@ -125,8 +125,8 @@ The widest ranges are 8 and 9: WebRTC failures are network-specific and hard to 
 
 ## Risks and open questions
 
-- **Open: peers that cannot connect.** Without a TURN relay, some pairs (symmetric NATs, strict campus or corporate firewalls) will fail to connect. Industry figures commonly put this at roughly 10–20% of pairs (unverified estimate). Item 12 adds Cloudflare TURN at $0.05 per GB after any included usage ([Cloudflare Realtime TURN](https://developers.cloudflare.com/realtime/turn/)). Decision needed before public launch: ship 12, or accept the failure rate and show a clear error.
-- **Privacy: peer-to-peer reveals IP addresses.** WebRTC ICE candidates include each player's public IP address, so a random stranger learns your IP. No FERPA data is involved (no student records, no identity), but this is a real exposure for a public game that students may play. Mitigation in 12: relay-only mode for quick matches hides IPs at the cost of TURN bandwidth. Decision needed.
+- **Open: peers that cannot connect.** Without a TURN relay, some pairs (symmetric NATs, strict campus or corporate firewalls) will fail to connect. Industry figures commonly put this at roughly 10–20% of pairs (unverified estimate). Item 12 adds Cloudflare TURN at $0.05 per GB after any included usage ([Cloudflare Realtime TURN](https://developers.cloudflare.com/realtime/turn/)). **Decided (2026-10-18):** item 12 ships before public launch, since relay-only quick matches require it.
+- **Privacy: peer-to-peer reveals IP addresses.** WebRTC ICE candidates include each player's public IP address, so a random stranger learns your IP. No FERPA data is involved (no student records, no identity), but this is a real exposure for a public game that students may play. **Decided (2026-10-18):** quick matches are relay-only (item 12, required before launch), and the sharing is disclosed on the online menu (item 10 R11) and in the README (item 13 R4).
 - **Third-party services.** STUN (needed for peer-to-peer) uses a public server; the default proposed is Cloudflare's (`stun:stun.cloudflare.com:3478`, inferred from Cloudflare's Realtime docs, verify in 8). TURN in 12 is also Cloudflare. Both send connection metadata (IP addresses) to Cloudflare, which already hosts the site.
 - **Host advantage.** The host sees its own inputs with zero delay; the guest sees theirs after a round trip plus interpolation delay. Host role is assigned by Convex (first in queue, or code creator). Open: add client-side prediction for the guest's own tank in a follow-up if playtests show it feels bad.
 - **Background tabs stop the host.** Browsers throttle `requestAnimationFrame` in hidden tabs, so a host who switches tabs freezes the match. Proposed (item 11): a hidden host's game is treated as a pause for up to 15 seconds, then forfeits.
