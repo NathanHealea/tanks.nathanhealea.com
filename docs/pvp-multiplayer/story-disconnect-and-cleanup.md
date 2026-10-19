@@ -2,13 +2,13 @@
 type: story
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: disconnect-and-cleanup
-status: in-progress
+status: staged
 branch: story/disconnect-and-cleanup
 worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/story-disconnect-and-cleanup
 created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
-version:             # set by `wi stage`
+version: 0.10.0
 review_approved:     # set by `wi accept`
 pr:                  # set by `wi pr`
 tag:                 # set by `wi release`; the tag sits on the branch's last commit
@@ -104,3 +104,5 @@ Matches have `status` and `endReason` (item 2), and Convex learns of round resul
 - 2026-10-19 — Review cycle 1 fixes (828784e..805b434): reportLost counts a missing presence row from arrival; results come from the server (matchOutcome query) rather than the peer's bye, at once when myMatch drops the match or by a report 21 s after a bye; beats and pagehide leave only on live screens; a waiting code's host gets 5 min between beats (R9 rule) instead of 60 s; score endings show as match results; lost-link banner clears while reporting. Accepted risk (security LOW): either player can end a live match with no result by reportLost or by going silent; Convex cannot tell a deliberate link failure from a real one. Deploy note for pvp-deploy-docs: ship the frontend before this Convex code, or matches in play on old clients (no presence rows) are abandoned by the sweep after 60 s.
 - 2026-10-19 — Review cycle 2 fixes (823c998, fbb5407): bye no longer stops the watch; the silence report settles 15 s after a bye whose leave never lands (R2); outcomeAction is a tested pure mapping; T8 describes the server-sourced end; a report finding the match still in play shows no result; a code the server dropped shows the expired screen. Dev re-check of the changed R9 rule (5 min, not the 60 s in the step 2 sign-off): a waiting code whose host beat 6 min ago was abandoned, one at 2 min stayed waiting. Needs the user's confirmation of 5 min at review.
 - 2026-10-19 — Test audit: 20 mutants, 7 survived; 5 killed by new tests, 2 left (createdAt fallback with no guestSeen, forfeit as an end reason — neither is written today). T8 row reworded to the server-sourced end. 415 tests pass. Waiting on manual checks before stage.
+- 2026-10-19 — User 2026-10-19: approved the 5-minute waiting-host idle limit, and reported 'the game worked' after manual testing. Individual AC1–AC4 outcomes, iOS backgrounding and the function-call count were not reported separately.
+- 2026-10-19 — Staged: verification passed; version 0.9.0 → 0.10.0; no changelog file.
