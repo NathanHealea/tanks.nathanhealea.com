@@ -1,6 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { cellCenter, lineOfSight } from './grid';
-import { reachable } from './layout';
 import { parseLevel } from './levels';
 import { FALLBACK_ARENA, PVP_COLS, PVP_ROWS, generatePvpMap, roundSeed } from './pvpMaps';
 import { createPvpGame } from './sim';
@@ -42,14 +41,31 @@ function checkSymmetry(rows: readonly string[]): string | null {
   return null;
 }
 
+// Independent of layout.ts's reachable(), so a wrong neighbour rule there cannot pass here too.
+function drivable(rows: readonly string[], from: { col: number; row: number }): Set<string> {
+  const seen = new Set([`${from.col},${from.row}`]);
+  const queue = [from];
+  while (queue.length) {
+    const { col, row } = queue.shift()!;
+    for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const c = col + dc;
+      const r = row + dr;
+      const ch = rows[r]?.[c];
+      if (ch === undefined || ch === '#' || ch === 'o' || seen.has(`${c},${r}`)) continue;
+      seen.add(`${c},${r}`);
+      queue.push({ col: c, row: r });
+    }
+  }
+  return seen;
+}
+
 function checkConnected(rows: readonly string[]): string | null {
   const p = findChar(rows, 'P');
   const two = findChar(rows, '2');
   if (!p || !two) return 'is missing a spawn';
   if (p.col !== 1) return `has P in column ${p.col}, expected 1`;
   if (two.col !== PVP_COLS - 2) return `has 2 in column ${two.col}, expected ${PVP_COLS - 2}`;
-  const { grid } = parseLevel([...rows]);
-  if (!reachable(grid, p).has(two.row * grid.cols + two.col)) return '2 is not reachable from P';
+  if (!drivable(rows, p).has(`${two.col},${two.row}`)) return '2 is not reachable from P';
   return null;
 }
 
@@ -132,9 +148,18 @@ describe('pvp arena generator', () => {
   it('fallback arena is valid', () => {
     const fallback = generatePvpMap(7, 0);
     expect(fallback).toEqual([...FALLBACK_ARENA]);
+    // A copy each time, so a caller editing its rows cannot corrupt the fallback for later rounds.
+    expect(fallback).not.toBe(FALLBACK_ARENA);
+    expect(generatePvpMap(7, 0)).not.toBe(fallback);
     for (const check of [checkShape, checkSymmetry, checkConnected, checkHiddenAndCovered, checkDensity]) {
       expect(check(fallback)).toBeNull();
     }
+  });
+
+  it('most arenas have cork for mines to break', () => {
+    const withCork = SEEDS.filter((seed) => generatePvpMap(seed).join('').includes('o')).length;
+    // 92% with the 20% cork share; the spawn-front walls alone give about 63%.
+    expect(withCork / SEEDS.length).toBeGreaterThan(0.8);
   });
 
   it('generation is fast', () => {
@@ -150,10 +175,10 @@ describe('pvp arena generator', () => {
   });
 
   it('roundSeed rejects seeds that would lose their randomness', () => {
-    for (const bad of [0.37, Number.NaN, Number.POSITIVE_INFINITY, 2 ** 33, -(2 ** 31) - 1]) {
+    for (const bad of [0.37, Number.NaN, Number.POSITIVE_INFINITY, 2 ** 32, 2 ** 33, -1]) {
       expect(() => roundSeed(bad, 1), String(bad)).toThrow('32-bit integer');
     }
     expect(() => roundSeed(2 ** 32 - 1, 1)).not.toThrow();
-    expect(() => roundSeed(-(2 ** 31), 1)).not.toThrow();
+    expect(() => roundSeed(0, 1)).not.toThrow();
   });
 });
