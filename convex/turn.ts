@@ -106,5 +106,7 @@ function parseIceServers(body: unknown): IceServer[] | null {
       ...(credential !== undefined ? { credential } : {}),
     });
   }
-  return servers.length > 0 ? servers : null;
+  // A relay needs a TURN URL with a login; STUN alone would leave a relay-only quick match with nothing to use.
+  const relays = servers.some((s) => s.username && s.credential && s.urls.some((u) => u.startsWith('turn')));
+  return relays ? servers : null;
 }

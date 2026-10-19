@@ -221,6 +221,8 @@ describe('turn', () => {
       ['only port 53 servers', json({ iceServers: [{ urls: ['turn:turn.cloudflare.com:53?transport=udp'] }] }, 201)],
       ['a url that is not a string', json({ iceServers: [{ urls: ['turn:turn.cloudflare.com:3478', 42] }] }, 201)],
       ['only servers off Cloudflare', json({ iceServers: [{ urls: ['turn:relay.example.test:3478'], username: 'u', credential: 'c' }] }, 201)],
+      ['STUN only, no relay login', json({ iceServers: [{ urls: ['stun:stun.cloudflare.com:3478'] }] }, 201)],
+      ['TURN without a credential', json({ iceServers: [{ urls: ['turn:turn.cloudflare.com:3478?transport=udp'] }] }, 201)],
     ];
     for (const [, response] of cases) {
       vi.stubGlobal('fetch', vi.fn(async () => response));
