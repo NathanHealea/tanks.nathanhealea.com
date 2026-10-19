@@ -90,7 +90,7 @@ Status column by matching the Slug column, so keep slugs exact.
 | 6 | story | random-matchmaking | Random matchmaking queue | R2, R11 | 2, 3 | released |
 | 7 | story | private-match-codes | Private matches with share codes and links | R3, R11 | 2, 3 | released |
 | 8 | story | webrtc-connection | Peer-to-peer connection over Convex signaling | R4, R11 | 6 | released |
-| 9 | story | host-authoritative-netcode | Host-authoritative networked game session | R4, R6 | 4, 5, 8 | planned |
+| 9 | story | host-authoritative-netcode | Host-authoritative networked game session | R4, R6 | 4, 5, 8 | released |
 | 10 | story | pvp-match-screens | Online menus, PvP HUD and match flow | R2, R3, R6, R9, R10 | 6, 7, 9 | planned |
 | 11 | story | disconnect-and-cleanup | Disconnects, forfeits and stale-data cleanup | R7, R8 | 9, 10 | planned |
 | 12 | story | turn-relay | TURN relay for restrictive networks | R4 | 8 | planned |
