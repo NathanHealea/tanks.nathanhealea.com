@@ -2,13 +2,13 @@
 type: story
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: private-match-codes
-status: in-progress
+status: staged
 branch: story/private-match-codes
 worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/story-private-match-codes
 created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
-version:             # set by `wi stage`
+version: 0.6.0
 review_approved:     # set by `wi accept`
 pr:                  # set by `wi pr`
 tag:                 # set by `wi release`; the tag sits on the branch's last commit
@@ -100,3 +100,6 @@ Same backend pieces as `random-matchmaking`: the `matches` table with its `by_co
 - 2026-10-18 — Started on branch story/private-match-codes from origin/pvp-tank.
 - 2026-10-18 — Steps 1 and 2 share convex/privateMatch.ts, so they landed together after the codes module. Added tests beyond the plan: expired code frees the host, ALREADY_IN_MATCH on create, queue entry removed on create and join, guest cannot cancel, malformed ids rejected by all three functions (a mutation showed joinPrivate validation was otherwise untested).
 - 2026-10-18 — Step 4: R8/T11 (waiting host heartbeat) moved to disconnect-and-cleanup R9, since no match heartbeat mutation exists before that item. Step 4 became the hook plus a tested joinErrorOf mapping (T12); the hook itself is a thin untested wrapper.
+- 2026-10-18 — Staging review fixes: HIGH connect timeout now timed from guestSeen (late joins were born dead); joinQueue refuses a host holding a code and useQuickMatch ignores private matches; extendPrivate added for WCAG 2.2.1 (Make a new code does not extend); create errors mapped; cancel/extend scoped to the host's waiting match; share links rewritten with an absolute URL. Item 10 plan updated (Keep this code, expired state, confirm before link join). Open: share codes come from Convex's seeded Math.random; Convex docs do not say whether the seed is unpredictable.
+- 2026-10-18 — Test audit (second cycle): 3 MED gaps (expiry vs connecting, playing-match codes, replacing a live match) and 6 LOWs now covered; all 9 re-run mutants killed. Remaining: hooks untested (declared), joinPrivate check order is pinned only for own-code-vs-full.
+- 2026-10-18 — Staged: verification passed; version 0.5.0 → 0.6.0; no changelog file.
