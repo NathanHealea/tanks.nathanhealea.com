@@ -26,7 +26,7 @@ describe('share', () => {
     const [data, unused, cleaned] = history.replaceState.mock.calls[0];
     expect(data).toBeNull();
     expect(unused).toBe('');
-    expect(cleaned).toBe('/');
+    expect(cleaned).toBe(`${ORIGIN}/`);
     expect(String(cleaned)).not.toContain('join');
   });
 
@@ -34,13 +34,13 @@ describe('share', () => {
     const history = fakeHistory();
     const code = readJoinParam({ href: `${ORIGIN}/play?mode=duel&join=HK7Q2M&debug=1#lobby` }, history);
     expect(code).toBe('HK7Q2M');
-    expect(history.replaceState).toHaveBeenCalledWith(null, '', '/play?mode=duel&debug=1#lobby');
+    expect(history.replaceState).toHaveBeenCalledWith(null, '', `${ORIGIN}/play?mode=duel&debug=1#lobby`);
   });
 
   it('lowercase join value is normalized', () => {
     const history = fakeHistory();
     expect(readJoinParam({ href: `${ORIGIN}/?join=hk7-q2m` }, history)).toBe('HK7Q2M');
-    expect(history.replaceState).toHaveBeenCalledWith(null, '', '/');
+    expect(history.replaceState).toHaveBeenCalledWith(null, '', `${ORIGIN}/`);
   });
 
   it('invalid join param is ignored', () => {
@@ -54,5 +54,12 @@ describe('share', () => {
     const history = fakeHistory();
     expect(readJoinParam({ href: `${ORIGIN}/?mode=duel#lobby` }, history)).toBeNull();
     expect(history.replaceState).not.toHaveBeenCalled();
+  });
+
+  it('a protocol-relative path cannot point the address bar at another origin', () => {
+    const history = { replaceState: vi.fn() };
+    expect(readJoinParam({ href: `${ORIGIN}//evil.example/?join=HK7Q2M` }, history)).toBe('HK7Q2M');
+    const [, , url] = history.replaceState.mock.calls[0];
+    expect(new URL(url as string, ORIGIN).origin).toBe(ORIGIN);
   });
 });

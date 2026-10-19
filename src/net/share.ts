@@ -1,5 +1,6 @@
-export { formatCode, normalizeCode } from '../../convex/lib/codes';
-import { normalizeCode } from '../../convex/lib/codes';
+import { formatCode, normalizeCode } from '../../convex/lib/codes';
+
+export { formatCode, normalizeCode };
 
 export function buildJoinUrl(code: string, origin: string): string {
   return `${origin}/?join=${code}`;
@@ -19,6 +20,7 @@ export function readJoinParam(location: { href: string }, history: HistoryLike):
   const code = raw === null ? null : normalizeCode(raw);
   if (!code) return null;
   url.searchParams.delete('join');
-  history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+  // The absolute URL, not pathname + search: a path like //evil.example/ would read as another origin and throw.
+  history.replaceState(null, '', url.href);
   return code;
 }
