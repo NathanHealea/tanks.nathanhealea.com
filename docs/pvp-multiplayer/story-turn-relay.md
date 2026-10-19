@@ -80,6 +80,8 @@ Item 8 connects with STUN only, so pairs behind symmetric NATs or UDP-blocking f
 
 ## Risks and open questions
 
+- Never put TURN credentials in `VITE_ICE_SERVERS`: every `VITE_` variable is compiled into the public bundle, so anyone could lift them and use the relay. Keep that variable for STUN only; TURN credentials come from the `turnCredentials` action (raised in the webrtc-connection security review).
+
 - **Decision needed: relay-only quick matches.** Hides IP addresses from strangers, but every quick match then pays TURN bandwidth: about 30–60 KB/s per direction, roughly 100–200 MB per match-hour, about $0.01 per match-hour at $0.05/GB (inferred from item 9's snapshot estimate; measure).
 - **Decision needed: ship before launch or not.** Item 8's connectivity matrix decides.
 - Cost runaway: anyone can create matches and request credentials. The per-match cap (R3) and the membership check bound it, but set a billing alert in Cloudflare.
