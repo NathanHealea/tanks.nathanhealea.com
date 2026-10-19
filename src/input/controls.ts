@@ -74,9 +74,15 @@ export function setPointer(clientX: number, clientY: number): void {
   controls.keyAim = null;
 }
 
+function isTextEntry(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+}
+
 /** Keyboard and mouse bindings. Returns an unbind function. `onPause` fires on Escape or P. */
 export function bindDesktop(surface: HTMLElement, onPause: () => void): () => void {
   const keyDown = (e: KeyboardEvent) => {
+    // Typing a match code is not driving: letters, Space and the arrow keys belong to the field.
+    if (isTextEntry(e.target) && e.code !== 'Escape') return;
     if (e.code === 'Escape' || e.code === 'KeyP') {
       onPause();
       return;
