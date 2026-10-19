@@ -13,6 +13,7 @@ import type * as lib_codes from "../lib/codes.js";
 import type * as lib_ids from "../lib/ids.js";
 import type * as matchmaking from "../matchmaking.js";
 import type * as privateMatch from "../privateMatch.js";
+import type * as signaling from "../signaling.js";
 
 import type {
   ApiFromModules,
@@ -26,6 +27,7 @@ declare const fullApi: ApiFromModules<{
   "lib/ids": typeof lib_ids;
   matchmaking: typeof matchmaking;
   privateMatch: typeof privateMatch;
+  signaling: typeof signaling;
 }>;
 
 /**
