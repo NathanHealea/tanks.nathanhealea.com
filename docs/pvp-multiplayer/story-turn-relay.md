@@ -2,9 +2,9 @@
 type: story
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: turn-relay
-status: planned      # planned | in-progress | changes-requested | staged | released
+status: in-progress
 branch: story/turn-relay
-worktree_path:       # set by `wi start`
+worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/story-turn-relay
 created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
@@ -91,3 +91,4 @@ Item 8 connects with STUN only, so pairs behind symmetric NATs or UDP-blocking f
 
 - 2026-10-18 — Planned.
 - 2026-10-18 — Plan approved.
+- 2026-10-19 — Started on branch story/turn-relay from origin/pvp-tank.
