@@ -14,7 +14,7 @@ import { readJoinParam } from './net/share';
 import { OnlinePlay } from './ui/online/OnlinePlay';
 
 // Read once at load: readJoinParam also removes the code from the address bar.
-const joinCode = typeof window !== 'undefined' ? readJoinParam(window.location, window.history) : null;
+const linkCode = typeof window !== 'undefined' ? readJoinParam(window.location, window.history) : null;
 
 type Screen = 'title' | 'online' | 'playing' | 'paused' | 'popped' | 'cleared' | 'gameover' | 'victory';
 
@@ -72,7 +72,9 @@ function ControlsHelp() {
 }
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>(joinCode ? 'online' : 'title');
+  const [screen, setScreen] = useState<Screen>(linkCode ? 'online' : 'title');
+  // Used once: after leaving online play, Play online opens the menu, not the link's join screen again.
+  const [joinCode, setJoinCode] = useState(linkCode);
   const [onlineSession, setOnlineSession] = useState<GameSession | null>(null);
   const [onlineKey, setOnlineKey] = useState(0);
   const [online, setOnline] = useState(() => navigator.onLine);
@@ -143,6 +145,7 @@ export default function App() {
   };
 
   const leaveOnline = useCallback(() => {
+    setJoinCode(null);
     setOnlineSession(null);
     setScreen('title');
   }, []);

@@ -97,6 +97,8 @@ export function OnlinePlay(props: Props) {
     if (!match) return;
     // A rematch starts while the last match's link may still be open.
     endConnection();
+    setScore({ you: 0, them: 0 });
+    setLastResult(null);
     const link = await connectToOpponent({ convex, matchId: match.id, playerId: me, role: match.role }).catch((err) => {
       console.error('Connecting to the opponent failed', err);
       dispatch({ type: 'connectFailed', reason: err instanceof PeerError ? err.code : 'CONNECT_FAILED' });
@@ -170,6 +172,12 @@ export function OnlinePlay(props: Props) {
     }
   };
 
+  function newCode() {
+    lastCode.current = {};
+    setCodeExpired(false);
+    void priv.create();
+  }
+
   function runEffect(effect: OnlineEffect) {
     setError(null);
     switch (effect.type) {
@@ -181,8 +189,7 @@ export function OnlinePlay(props: Props) {
         void quick.cancel();
         break;
       case 'createPrivate':
-        setCodeExpired(false);
-        void priv.create();
+        newCode();
         break;
       case 'cancelPrivate':
         void priv.cancel();
@@ -329,10 +336,7 @@ export function OnlinePlay(props: Props) {
           expired={codeExpired}
           error={error}
           onKeep={() => void priv.extend()}
-          onNewCode={() => {
-            setCodeExpired(false);
-            void priv.create();
-          }}
+          onNewCode={newCode}
           onCancel={() => dispatch({ type: 'cancel' })}
           announce={announce}
         />
