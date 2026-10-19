@@ -236,7 +236,14 @@ export default function App() {
               </button>
               {convexClient && (
                 <>
-                  <button type="button" className="primary" onClick={openOnline} disabled={!online} aria-describedby={online ? undefined : 'offline-note'}>
+                  {/* aria-disabled keeps the button in the Tab order, so its offline explanation is read. */}
+                  <button
+                    type="button"
+                    className="primary"
+                    onClick={online ? openOnline : undefined}
+                    aria-disabled={!online}
+                    aria-describedby={online ? undefined : 'offline-note'}
+                  >
                     Play online
                   </button>
                   {!online && (
