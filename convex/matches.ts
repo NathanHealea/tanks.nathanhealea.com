@@ -2,6 +2,7 @@ import { ConvexError, v } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
 import { mutation, query, type QueryCtx } from './_generated/server';
 import { loadMatchAs, type Role } from './lib/access';
+import { takeMatchSlot } from './lib/relayBudget';
 import { activeMatchFor } from './matchmaking';
 
 // Mirrors ROUNDS_TO_WIN in src/game/config.ts, which the browser uses; convex/ does not import from src/.
@@ -61,6 +62,7 @@ export const requestRematch = mutation({
     if (!flags.hostRematch || !flags.guestRematch || match.guestId === undefined) return { matchId: null };
     // The first request may be stale: that player can have moved on to another match without withdrawing it.
     if (await activeMatchFor(ctx, role === 'host' ? match.guestId : match.hostId)) throw new ConvexError('OPPONENT_LEFT');
+    if (!(await takeMatchSlot(ctx, Date.now()))) throw new ConvexError('BUSY');
 
     const now = Date.now();
     const rematchId = await ctx.db.insert('matches', {

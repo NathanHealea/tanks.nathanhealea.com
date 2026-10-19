@@ -27,7 +27,7 @@ describe('matchmaking', () => {
 
     const result = await t.mutation(api.matchmaking.joinQueue, { playerId: a });
 
-    expect(result).toEqual({ status: 'queued' });
+    expect(result).toEqual({ status: 'queued', full: false });
     const queue = await t.run((ctx) => ctx.db.query('queue').collect());
     expect(queue).toHaveLength(1);
     expect(queue[0].playerId).toBe(a);
@@ -43,7 +43,7 @@ describe('matchmaking', () => {
     await t.mutation(api.matchmaking.joinQueue, { playerId: a });
     const result = await t.mutation(api.matchmaking.joinQueue, { playerId: b });
 
-    expect(result).toEqual({ status: 'matched' });
+    expect(result).toEqual({ status: 'matched', full: false });
     const { matches, queue } = await t.run(async (ctx) => ({
       matches: await ctx.db.query('matches').collect(),
       queue: await ctx.db.query('queue').collect(),
@@ -79,7 +79,7 @@ describe('matchmaking', () => {
     vi.advanceTimersByTime(40_000);
     const result = await t.mutation(api.matchmaking.joinQueue, { playerId: b });
 
-    expect(result).toEqual({ status: 'queued' });
+    expect(result).toEqual({ status: 'queued', full: false });
     const { matches, queue } = await t.run(async (ctx) => ({
       matches: await ctx.db.query('matches').collect(),
       queue: await ctx.db.query('queue').collect(),
@@ -104,7 +104,7 @@ describe('matchmaking', () => {
     });
     const result = await t.mutation(api.matchmaking.joinQueue, { playerId: b });
 
-    expect(result).toEqual({ status: 'matched' });
+    expect(result).toEqual({ status: 'matched', full: false });
     const { matches, queue } = await t.run(async (ctx) => ({
       matches: await ctx.db.query('matches').collect(),
       queue: await ctx.db.query('queue').collect(),
@@ -120,15 +120,15 @@ describe('matchmaking', () => {
     const a = crypto.randomUUID();
     const b = crypto.randomUUID();
 
-    expect(await t.mutation(api.matchmaking.joinQueue, { playerId: a })).toEqual({ status: 'queued' });
-    expect(await t.mutation(api.matchmaking.joinQueue, { playerId: a })).toEqual({ status: 'queued' });
+    expect(await t.mutation(api.matchmaking.joinQueue, { playerId: a })).toEqual({ status: 'queued', full: false });
+    expect(await t.mutation(api.matchmaking.joinQueue, { playerId: a })).toEqual({ status: 'queued', full: false });
     const queueAfterRejoin = await t.run((ctx) => ctx.db.query('queue').collect());
     expect(queueAfterRejoin).toHaveLength(1);
 
     await t.mutation(api.matchmaking.joinQueue, { playerId: b });
     const result = await t.mutation(api.matchmaking.joinQueue, { playerId: a });
 
-    expect(result).toEqual({ status: 'matched' });
+    expect(result).toEqual({ status: 'matched', full: false });
     const { matches, queue } = await t.run(async (ctx) => ({
       matches: await ctx.db.query('matches').collect(),
       queue: await ctx.db.query('queue').collect(),
@@ -144,7 +144,7 @@ describe('matchmaking', () => {
     await t.mutation(api.matchmaking.joinQueue, { playerId: a });
     const result = await t.mutation(api.matchmaking.joinQueue, { playerId: a });
 
-    expect(result).toEqual({ status: 'queued' });
+    expect(result).toEqual({ status: 'queued', full: false });
     const { matches, queue } = await t.run(async (ctx) => ({
       matches: await ctx.db.query('matches').collect(),
       queue: await ctx.db.query('queue').collect(),
@@ -263,13 +263,13 @@ describe('matchmaking', () => {
 
     await t.mutation(api.matchmaking.joinQueue, { playerId: a });
     vi.advanceTimersByTime(20_000);
-    expect(await t.mutation(api.matchmaking.queueHeartbeat, { playerId: a })).toBeNull();
+    expect(await t.mutation(api.matchmaking.queueHeartbeat, { playerId: a })).toEqual({ status: 'queued', full: false });
 
     const queue = await t.run((ctx) => ctx.db.query('queue').collect());
     expect(queue).toHaveLength(1);
     expect(queue[0]).toMatchObject({ playerId: a, joinedAt: 1_000_000, lastSeen: 1_020_000 });
 
-    expect(await t.mutation(api.matchmaking.queueHeartbeat, { playerId: b })).toBeNull();
+    expect(await t.mutation(api.matchmaking.queueHeartbeat, { playerId: b })).toEqual({ status: 'queued', full: false });
     const afterStranger = await t.run((ctx) => ctx.db.query('queue').collect());
     expect(afterStranger.map((row) => row.playerId)).toEqual([a]);
   });
@@ -288,7 +288,7 @@ describe('matchmaking', () => {
 
     const result = await t.mutation(api.matchmaking.joinQueue, { playerId: crypto.randomUUID() });
 
-    expect(result).toEqual({ status: 'matched' });
+    expect(result).toEqual({ status: 'matched', full: false });
     const { matches, queue } = await t.run(async (ctx) => ({
       matches: await ctx.db.query('matches').collect(),
       queue: await ctx.db.query('queue').collect(),
@@ -311,7 +311,7 @@ describe('matchmaking', () => {
 
     vi.setSystemTime(1_000_000 + 60_001);
     expect(await t.query(api.matchmaking.myMatch, { playerId: b })).toBeNull();
-    expect(await t.mutation(api.matchmaking.joinQueue, { playerId: b })).toEqual({ status: 'queued' });
+    expect(await t.mutation(api.matchmaking.joinQueue, { playerId: b })).toEqual({ status: 'queued', full: false });
   });
 
   it.each(['playing', 'waiting'] as const)('a %s match older than a minute still counts as active', async (status) => {
@@ -327,7 +327,7 @@ describe('matchmaking', () => {
     });
 
     expect(await t.query(api.matchmaking.myMatch, { playerId: a })).not.toBeNull();
-    expect(await t.mutation(api.matchmaking.joinQueue, { playerId: a })).toEqual({ status: 'matched' });
+    expect(await t.mutation(api.matchmaking.joinQueue, { playerId: a })).toEqual({ status: 'matched', full: false });
     const { matches, queue } = await t.run(async (ctx) => ({
       matches: await ctx.db.query('matches').collect(),
       queue: await ctx.db.query('queue').collect(),
@@ -343,11 +343,11 @@ describe('matchmaking', () => {
     const edge = crypto.randomUUID();
     const past = crypto.randomUUID();
     await t.run((ctx) => ctx.db.insert('queue', { playerId: edge, joinedAt: 1, lastSeen: 1_000_000 - 30_000 }));
-    expect(await t.mutation(api.matchmaking.joinQueue, { playerId: crypto.randomUUID() })).toEqual({ status: 'matched' });
+    expect(await t.mutation(api.matchmaking.joinQueue, { playerId: crypto.randomUUID() })).toEqual({ status: 'matched', full: false });
 
     await t.run((ctx) => ctx.db.insert('queue', { playerId: past, joinedAt: 1, lastSeen: 1_000_000 - 30_001 }));
     const caller = crypto.randomUUID();
-    expect(await t.mutation(api.matchmaking.joinQueue, { playerId: caller })).toEqual({ status: 'queued' });
+    expect(await t.mutation(api.matchmaking.joinQueue, { playerId: caller })).toEqual({ status: 'queued', full: false });
     const queue = await t.run((ctx) => ctx.db.query('queue').collect());
     expect(queue.map((row) => row.playerId)).toEqual([caller]);
   });

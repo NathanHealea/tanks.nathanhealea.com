@@ -55,6 +55,12 @@ export default defineSchema({
     lastSeen: v.number(),
   }).index('by_match', ['matchId', 'role']),
 
+  // Match starts per hour, the cap that keeps relay traffic in Cloudflare's free tier (turn-relay R7).
+  relayBudget: defineTable({
+    hour: v.number(),
+    matches: v.number(),
+  }).index('by_hour', ['hour']),
+
   // How many TURN credentials each player has drawn for a match: each is a billable relay allocation.
   turnGrants: defineTable({
     matchId: v.id('matches'),

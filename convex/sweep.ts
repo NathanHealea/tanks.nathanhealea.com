@@ -1,5 +1,6 @@
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
+import { hourOf } from './lib/relayBudget';
 
 /** Rows each rule handles per run; anything left waits a minute for the next run (R7). */
 export const SWEEP_BATCH = 500;
@@ -29,6 +30,7 @@ export const sweep = internalMutation({
     await deleteLeftoverSignals(ctx);
     await deleteOldMatches(ctx, now, 'finished');
     await deleteOldMatches(ctx, now, 'abandoned');
+    await deleteOldBudget(ctx, now);
     return null;
   },
 });
@@ -107,4 +109,13 @@ async function deleteOldMatches(ctx: MutationCtx, now: number, status: 'finished
     for (const grant of grants) await ctx.db.delete(grant._id);
     await ctx.db.delete(match._id);
   }
+}
+
+/** The match-start count is only read for the current hour; earlier hours are kept briefly for checking. */
+async function deleteOldBudget(ctx: MutationCtx, now: number) {
+  const old = await ctx.db
+    .query('relayBudget')
+    .withIndex('by_hour', (q) => q.lt('hour', hourOf(now) - 2))
+    .take(SWEEP_BATCH);
+  for (const row of old) await ctx.db.delete(row._id);
 }
