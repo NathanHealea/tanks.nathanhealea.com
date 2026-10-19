@@ -2,13 +2,13 @@
 type: story
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: webrtc-connection
-status: in-progress
+status: staged
 branch: story/webrtc-connection
 worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/story-webrtc-connection
 created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
-version:             # set by `wi stage`
+version: 0.7.0
 review_approved:     # set by `wi accept`
 pr:                  # set by `wi pr`
 tag:                 # set by `wi release`; the tag sits on the branch's last commit
@@ -99,3 +99,6 @@ WebRTC needs the two peers to exchange an SDP offer and answer (descriptions of 
 - 2026-10-18 — Started on branch story/webrtc-connection from origin/pvp-tank.
 - 2026-10-18 — Step 3 built test-first and committed; stopped for user review before any real-network use (high-risk). Mutation checks: all 10 meaningful breaks killed after adding early-ICE and late-open tests.
 - 2026-10-18 — Step 4 deferred to pvp-match-screens by the user; recorded there as a required pre-staging check.
+- 2026-10-18 — Staging review fixes: signals now expire 2 min after the first (IP retention), are refused and unreadable after the connect timeout, capped at 50 per side; client hello sent on ctrl open (mismatch reaches both sides), candidates stop after connect and their send failures are non-fatal, subscribe after handlers, bad ICE config and non-object hello fail as CONNECT_FAILED, guest answers first offer only, link closes on ICE failure. Open for the user: relay-only quick matches (IP exposure to strangers) and where to disclose it.
+- 2026-10-18 — Test audit (second cycle): HIGH wiring gap fixed (convexSignals + connectToOpponent; host calls markConnected); markConnected now uses the connecting window; 13 surviving mutants re-run and killed. Remaining LOW: unknown channel labels, ICE 'closed' in wrap, send on a non-open channel untested.
+- 2026-10-18 — Staged: verification passed; version 0.6.0 → 0.7.0; no changelog file.
