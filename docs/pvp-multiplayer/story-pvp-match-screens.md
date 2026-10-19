@@ -2,7 +2,7 @@
 type: story
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: pvp-match-screens
-status: staged
+status: released
 branch: story/pvp-match-screens
 worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/story-pvp-match-screens
 created: 2026-10-18
@@ -11,7 +11,7 @@ commit_type:         # optional override for the release subject type (default: 
 version: 0.9.0
 review_approved: 2026-10-19
 pr:                  # set by `wi pr`
-tag:                 # set by `wi release`; the tag sits on the branch's last commit
+tag: v0.9.0
 ---
 
 # Online menus, PvP HUD and match flow
@@ -122,3 +122,4 @@ Build the screens that make online play usable: a **Play online** entry on the t
 - 2026-10-19 — Manual checks skipped by the user on 2026-10-19: connectivity matrix (deferred from network-transport), two-browser flows, keyboard-only walkthrough (AC7), VoiceOver (AC3), axe, rendered contrast, phone landscape/zoom. None of R9 or the connect/rematch flows has been exercised in a browser.
 - 2026-10-19 — Staged: verification passed; version 0.8.0 → 0.9.0; no changelog file.
 - 2026-10-19 — Review approved.
+- 2026-10-19 — Released 0.9.0 as v0.9.0.
