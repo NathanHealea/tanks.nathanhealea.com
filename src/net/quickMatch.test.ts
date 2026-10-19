@@ -130,4 +130,67 @@ describe('QuickMatch', () => {
     expect(server.leave).not.toHaveBeenCalled();
     expect(quick.state).toBe('idle');
   });
+
+  it('a join that resolves after cancel and a new search starts only one heartbeat', async () => {
+    vi.useFakeTimers();
+    let resolveFirst!: (v: { status: 'queued' }) => void;
+    const server = {
+      join: vi
+        .fn()
+        .mockImplementationOnce(() => new Promise((r) => (resolveFirst = r)))
+        .mockResolvedValue({ status: 'queued' }),
+      heartbeat: vi.fn().mockResolvedValue(null),
+      leave: vi.fn().mockResolvedValue(null),
+    };
+    const quick = new QuickMatch(server, () => {});
+    const first = quick.start();
+    await quick.cancel();
+    await quick.start();
+    resolveFirst({ status: 'queued' });
+    await first;
+
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(server.heartbeat).toHaveBeenCalledTimes(1);
+    await quick.cancel();
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(server.heartbeat).toHaveBeenCalledTimes(1);
+  });
+
+  it('dispose tells the listener it is idle', async () => {
+    const states: QuickMatchState[] = [];
+    const quick = new QuickMatch(fakeServerQueued(), (s) => states.push(s));
+    await quick.start();
+    quick.dispose();
+    expect(states).toEqual(['searching', 'idle']);
+  });
+
+  it('a finished match lets the player search again', async () => {
+    const server = fakeServerQueued();
+    const quick = new QuickMatch(server, () => {});
+    await quick.start();
+    quick.matched();
+    quick.ended();
+    expect(quick.state).toBe('idle');
+    await quick.start();
+    expect(server.join).toHaveBeenCalledTimes(2);
+    quick.dispose();
+  });
+
+  it('a failed leave on cancel is logged, not thrown', async () => {
+    const server = { ...fakeServerQueued(), leave: vi.fn().mockRejectedValue(new Error('offline')) };
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const quick = new QuickMatch(server, () => {});
+    await quick.start();
+    await expect(quick.cancel()).resolves.toBeUndefined();
+    expect(errors).toHaveBeenCalled();
+    errors.mockRestore();
+  });
 });
+
+function fakeServerQueued() {
+  return {
+    join: vi.fn().mockResolvedValue({ status: 'queued' as const }),
+    heartbeat: vi.fn().mockResolvedValue(null),
+    leave: vi.fn().mockResolvedValue(null),
+  };
+}

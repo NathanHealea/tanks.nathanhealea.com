@@ -25,10 +25,7 @@ export const joinQueue = mutation({
     const now = Date.now();
     if (await activeMatchFor(ctx, playerId)) return { status: 'matched' };
 
-    const mine = await ctx.db
-      .query('queue')
-      .withIndex('by_player', (q) => q.eq('playerId', playerId))
-      .unique();
+    const mine = await queueEntry(ctx, playerId);
     if (mine) {
       await ctx.db.patch(mine._id, { lastSeen: now });
       return { status: 'queued' };

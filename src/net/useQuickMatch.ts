@@ -28,6 +28,7 @@ export function useQuickMatch() {
 
   useEffect(() => {
     if (match) quick.matched();
+    else if (match === null) quick.ended();
   }, [match, quick]);
 
   useEffect(() => {
