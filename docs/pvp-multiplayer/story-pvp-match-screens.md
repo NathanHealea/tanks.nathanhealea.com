@@ -72,7 +72,7 @@ Build the screens that make online play usable: a **Play online** entry on the t
 | T1 | R2, R7, R8 | `online flow transitions` | `src/ui/online/flow.test.ts` | Reducer walks menu → searching → connecting → countdown → playing → roundResult → matchResult; Cancel from each waiting state returns to menu |
 | T2 | R2 | `cancel releases server state` | `src/ui/online/flow.test.ts` | Cancel from `searching` emits a `leaveQueue` effect; from `privateWaiting` emits `cancelPrivate` |
 | T3 | R4 | `every join error has a message` | `src/ui/online/messages.test.ts` | Each of the five error codes maps to the exact copy above; unknown codes map to a generic message |
-| T4 | R5 | `join link enters join flow` | `src/ui/online/flow.test.ts` | Initial state with a join code and a client → `joining`; with no client → `onlineUnavailable` |
+| T4 | R5 | `join link enters join flow` | `src/ui/online/flow.test.ts` | Initial state with a join code and a client → `joining` (pre-filled, not auto-joined); with no client → `unavailable` |
 | T5 | R3 | `code is spoken by character` | `src/ui/online/messages.test.ts` | `spokenCode('HK7Q2M')` → `'H K 7 Q 2 M'`; `formatCode` reused from `share.ts` |
 | T6 | R8 | `rematch needs both players` | `convex/matches.test.ts` | First request sets a flag; second creates a new match with host and guest swapped, same `kind`, new seed; outsider rejected |
 | T7 | R8 | `rematch after opponent left fails` | `convex/matches.test.ts` | Opponent has left → `requestRematch` throws `OPPONENT_LEFT` |
@@ -90,11 +90,11 @@ Build the screens that make online play usable: a **Play online** entry on the t
 
 ## Implementation plan
 
-1. [ ] Add the pure `onlineFlow` reducer and message map — touches `src/ui/online/flow.ts`, `src/ui/online/flow.test.ts`, `src/ui/online/messages.ts`, `src/ui/online/messages.test.ts` — tests T1, T2, T3, T4, T5
-2. [ ] Add `requestRematch` — touches `convex/matches.ts`, `convex/matches.test.ts` — tests T6, T7
-3. [ ] Add the title entry point and online menu, searching, private waiting and join screens — touches `src/App.tsx`, `src/ui/online/OnlineScreens.tsx`, `src/styles.css` — tests T8 (manual checks above)
-4. [ ] Add connecting, countdown, round result, match result and leave-confirmation screens and the PvP HUD variant — touches `src/App.tsx`, `src/ui/online/MatchScreens.tsx`, `src/ui/Hud.tsx`, `src/styles.css` — tests T8 (manual checks above)
-5. [ ] Wire `?join=` handling and Escape-to-menu in matches, keeping campaign pause intact — touches `src/App.tsx`, `src/input/controls.ts` — tests T4, T8
+1. [x] Add the pure `onlineFlow` reducer and message map — touches `src/ui/online/flow.ts`, `src/ui/online/flow.test.ts`, `src/ui/online/messages.ts`, `src/ui/online/messages.test.ts` — tests T1, T2, T3, T4, T5
+2. [x] Add `requestRematch` — touches `convex/matches.ts`, `convex/matches.test.ts` — tests T6, T7
+3. [x] Add the title entry point and online menu, searching, private waiting and join screens — touches `src/App.tsx`, `src/ui/online/OnlineScreens.tsx`, `src/styles.css` — tests T8 (manual checks above)
+4. [x] Add connecting, countdown, round result, match result and leave-confirmation screens and the PvP HUD variant — touches `src/App.tsx`, `src/ui/online/MatchScreens.tsx`, `src/ui/Hud.tsx`, `src/styles.css` — tests T8 (manual checks above)
+5. [x] Wire `?join=` handling and Escape-to-menu in matches, keeping campaign pause intact — touches `src/App.tsx`, `src/input/controls.ts` — tests T4, T8
 
 **Must not change:** Campaign screens, copy and controls; `Overlay`'s dialog semantics.
 
@@ -115,3 +115,4 @@ Build the screens that make online play usable: a **Play online** entry on the t
 - 2026-10-18 — Planned.
 - 2026-10-18 — Plan approved.
 - 2026-10-18 — Started on branch story/pvp-match-screens from origin/pvp-tank.
+- 2026-10-18 — Steps 3-5 built. Deviations: the sharing line states today's behavior (direct connection) and changes with turn-relay; the round result shows during the next round's countdown rather than a separate 2 s screen (HostMatch starts the next round at once); a leave action was added to the flow for Leave match?. UI components have no automated tests (no React test library); manual checks pending.
