@@ -166,6 +166,11 @@ describe('online flow transitions', () => {
       [{ name: 'matchResult', won: true, you: 3, them: 0, rematch: 'none' }, { type: 'matched' }],
       [{ name: 'matchResult', won: true, you: 3, them: 0, rematch: 'none' }, { type: 'cancelRematch' }],
       [{ name: 'unavailable', reason: 'offline' }, { type: 'quickMatch' }],
+      [{ name: 'matchResult', won: true, you: 3, them: 0, rematch: 'waiting' }, { type: 'requestRematch' }],
+      [{ name: 'matchResult', won: true, you: 3, them: 0, rematch: 'none' }, { type: 'rematchFailed' }],
+      [{ name: 'matchResult', won: true, you: 3, them: 0, rematch: 'none' }, { type: 'connectFailed', reason: 'CONNECT_FAILED' }],
+      [MENU, { type: 'connectFailed', reason: 'CONNECT_FAILED' }],
+      [{ name: 'connectFailed', reason: 'CONNECT_FAILED' }, { type: 'quickMatch' }],
     ];
     for (const [screen, action] of cases) {
       const step = reduce(screen, action);

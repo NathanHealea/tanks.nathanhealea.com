@@ -206,6 +206,38 @@ describe('matches', () => {
     expect(await t.run((ctx) => ctx.db.query('matches').collect())).toHaveLength(2);
   });
 
+  it('a rematch asked for by the guest first checks the host is still free', async () => {
+    const t = convexTest(schema, modules);
+    const { matchId, hostId, guestId } = await seedFinishedMatch(t);
+    expect(await t.mutation(api.matches.requestRematch, { playerId: guestId, matchId })).toEqual({ matchId: null });
+    expect(await t.run((ctx) => ctx.db.get(matchId))).toMatchObject({ hostRematch: false, guestRematch: true });
+    await t.mutation(api.privateMatch.createPrivate, { playerId: guestId });
+    await expectConvexErrorAsync(t.mutation(api.matches.requestRematch, { playerId: hostId, matchId }), 'OPPONENT_LEFT');
+    expect(await t.run((ctx) => ctx.db.query('matches').collect())).toHaveLength(2);
+  });
+
+  it('the guest withdraws only their own rematch request', async () => {
+    const t = convexTest(schema, modules);
+    const { matchId, hostId, guestId } = await seedFinishedMatch(t);
+    await t.mutation(api.matches.requestRematch, { playerId: guestId, matchId });
+    await t.mutation(api.matches.cancelRematch, { playerId: guestId, matchId });
+    expect(await t.run((ctx) => ctx.db.get(matchId))).toMatchObject({ hostRematch: false, guestRematch: false });
+
+    expect(await t.mutation(api.matches.requestRematch, { playerId: hostId, matchId })).toEqual({ matchId: null });
+    expect(await t.run((ctx) => ctx.db.query('matches').collect())).toHaveLength(1);
+  });
+
+  it('asking again after the rematch has ended opens no second rematch', async () => {
+    const t = convexTest(schema, modules);
+    const { matchId, hostId, guestId } = await seedFinishedMatch(t);
+    await t.mutation(api.matches.requestRematch, { playerId: hostId, matchId });
+    const { matchId: rematchId } = await t.mutation(api.matches.requestRematch, { playerId: guestId, matchId });
+    await t.run((ctx) => ctx.db.patch(rematchId!, { status: 'abandoned' }));
+
+    expect(await t.mutation(api.matches.requestRematch, { playerId: hostId, matchId })).toEqual({ matchId: null });
+    expect(await t.run((ctx) => ctx.db.query('matches').collect())).toHaveLength(2);
+  });
+
   it('a player already in another match cannot rematch', async () => {
     const t = convexTest(schema, modules);
     const { matchId, hostId } = await seedFinishedMatch(t);
