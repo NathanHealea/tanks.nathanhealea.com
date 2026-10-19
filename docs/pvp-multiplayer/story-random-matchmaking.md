@@ -2,9 +2,9 @@
 type: story
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: random-matchmaking
-status: planned      # planned | in-progress | changes-requested | staged | released
+status: in-progress
 branch: story/random-matchmaking
-worktree_path:       # set by `wi start`
+worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/story-random-matchmaking
 created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
@@ -94,3 +94,4 @@ The schema from `convex-backend-setup` defines `queue` and `matches`. `player-id
 
 - 2026-10-18 — Planned.
 - 2026-10-18 — Plan approved.
+- 2026-10-18 — Started on branch story/random-matchmaking from origin/pvp-tank.
