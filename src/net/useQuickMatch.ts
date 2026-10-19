@@ -27,8 +27,9 @@ export function useQuickMatch() {
   );
 
   useEffect(() => {
-    if (match) quick.matched();
-    else if (match === null) quick.ended();
+    // A waiting private match is the private-match flow's; only a quick match ends a quick-match search.
+    if (match?.kind === 'quick') quick.matched();
+    else if (match !== undefined) quick.ended();
   }, [match, quick]);
 
   useEffect(() => {

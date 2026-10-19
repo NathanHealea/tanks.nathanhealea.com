@@ -1,11 +1,11 @@
-import { v } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
 import type { Doc } from './_generated/dataModel';
 import { mutation, query, type QueryCtx } from './_generated/server';
 import { requirePlayerId, toMatchView, type MatchView } from './lib/access';
 
 /** A queue entry with no heartbeat for this long is treated as a closed tab and never paired. */
 export const QUEUE_STALE_MS = 30_000;
-/** A quick match nobody has connected within this long is dead; its players may search again. */
+/** A match still connecting this long after its guest arrived is dead; its players may search again. */
 export const CONNECT_TIMEOUT_MS = 60_000;
 // The pairing scan reads the queue head in pages and deletes stale entries it meets, so abandoned tabs cannot pile up
 // at the head and block pairing for everyone. Bounded per call: at most PAIRING_PAGES * PAIRING_SCAN rows.
@@ -23,7 +23,10 @@ export const joinQueue = mutation({
   handler: async (ctx, { playerId }): Promise<{ status: 'queued' | 'matched' }> => {
     requirePlayerId(playerId);
     const now = Date.now();
-    if (await activeMatchFor(ctx, playerId)) return { status: 'matched' };
+    const active = await activeMatchFor(ctx, playerId);
+    // A host holding a private code is waiting for a friend, not an opponent; quick match must not wait on that.
+    if (active?.kind === 'private' && active.status === 'waiting') throw new ConvexError('ALREADY_IN_MATCH');
+    if (active) return { status: 'matched' };
 
     const mine = await queueEntry(ctx, playerId);
     if (mine) {
@@ -76,7 +79,8 @@ export async function activeMatchFor(ctx: Pick<QueryCtx, 'db'>, playerId: string
   const now = Date.now();
   const live = (m: Doc<'matches'>) =>
     ACTIVE.includes(m.status) &&
-    !(m.status === 'connecting' && now - m.createdAt > CONNECT_TIMEOUT_MS) &&
+    // Timed from the guest's arrival, not creation: a private code can wait minutes before anyone joins.
+    !(m.status === 'connecting' && now - (m.guestSeen ?? m.createdAt) > CONNECT_TIMEOUT_MS) &&
     !(m.status === 'waiting' && m.expiresAt !== undefined && now > m.expiresAt);
   return [...asHost, ...asGuest].find(live) ?? null;
 }
