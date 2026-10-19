@@ -9,7 +9,7 @@ created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
 version: 0.2.0
-review_approved:     # set by `wi accept`
+review_approved: 2026-10-18
 pr:                  # set by `wi pr`
 tag:                 # set by `wi release`; the tag sits on the branch's last commit
 ---
@@ -91,3 +91,4 @@ The user requirement: no login, no account, a GUID generated each time the game 
 - 2026-10-18 — Staging review fixes: player ids now built from crypto.getRandomValues because randomUUID is secure-context only and phones test the dev server over plain http; toMatchView takes the caller's id and checks membership (was any role); added loadMatchAs (scope promised it; validates id before reading); isPlayerId rejects non-strings; MatchView is a named type. Added T7, T8.
 - 2026-10-18 — Test audit: 34 of 40 mutants killed initially; fixed the gaps (ConvexError class, view values, URL/history/IndexedDB writes, client ids checked against the server validator) and corrected two overstated comments; all 7 re-run mutants killed.
 - 2026-10-18 — Staged: verification passed; version 0.1.2 → 0.2.0; no changelog file.
+- 2026-10-18 — Review approved.
