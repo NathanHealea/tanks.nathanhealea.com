@@ -74,10 +74,10 @@ Teach the simulation to run a PvP round: two player tanks on opposing teams, no 
 
 ## Implementation plan
 
-1. [ ] Add `mode` and `winner` to `GameState`, `'draw'` to `outcome`, and set them in `createGame` — touches `src/game/types.ts`, `src/game/sim.ts`, `src/game/sim.test.ts`, `src/render/Scene.tsx` — tests T10
-2. [ ] Add `createPvpGame` by extracting spawn-to-tank construction from `createGame` — touches `src/game/sim.ts`, `src/game/pvp.test.ts` — tests T1, T2, T3
-3. [ ] Add the PvP branch of `updateOutcome` — touches `src/game/sim.ts`, `src/game/pvp.test.ts` — tests T4, T5, T6, T7
-4. [ ] Add match scoring and `ROUNDS_TO_WIN` — touches `src/game/match.ts`, `src/game/match.test.ts`, `src/game/config.ts` — tests T8, T9
+1. [x] Add `mode` and `winner` to `GameState`, `'draw'` to `outcome`, and set them in `createGame` — touches `src/game/types.ts`, `src/game/sim.ts`, `src/game/sim.test.ts`, `src/render/Scene.tsx` — tests T10
+2. [x] Add `createPvpGame` by extracting spawn-to-tank construction from `createGame` — touches `src/game/sim.ts`, `src/game/pvp.test.ts` — tests T1, T2, T3
+3. [x] Add the PvP branch of `updateOutcome` — touches `src/game/sim.ts`, `src/game/pvp.test.ts` — tests T4, T5, T6, T7
+4. [x] Add match scoring and `ROUNDS_TO_WIN` — touches `src/game/match.ts`, `src/game/match.test.ts`, `src/game/config.ts` — tests T8, T9
 
 **Must not change:** `createGame(levelIndex, playerIds, seed)` signature and campaign results; `step(state, inputs)` signature; `PlayerInput`; `GameEvent`.
 
