@@ -77,10 +77,10 @@ Matches have `status` and `endReason` (item 2), and Convex learns of round resul
 
 ## Implementation plan
 
-1. [ ] Add the `presence` table, `endReason` values, and `heartbeat`, `leave` and `reportLost` — touches `convex/schema.ts`, `convex/matches.ts`, `convex/matches.test.ts` — tests T1, T2, T3, T4
-2. [ ] Add `sweep` and the cron — touches `convex/sweep.ts`, `convex/crons.ts`, `convex/sweep.test.ts` — tests T5, T6
-3. [ ] Add ping, silence detection and `bye` to both sessions — touches `src/net/silence.ts`, `src/net/silence.test.ts`, `src/net/hostSession.ts`, `src/net/guestSession.ts`, `src/net/session.integration.test.ts` — tests T7, T8
-4. [ ] Add the hidden-tab rule, heartbeats and `pagehide` leave to the match lifecycle, and the outcome states to the flow reducer — touches `src/net/visibility.ts`, `src/net/visibility.test.ts`, `src/ui/online/flow.ts`, `src/App.tsx` — tests T9
+1. [x] Add the `presence` table, `endReason` values, and `heartbeat`, `leave` and `reportLost` — touches `convex/schema.ts`, `convex/matches.ts`, `convex/matches.test.ts` — tests T1, T2, T3, T4
+2. [x] Add `sweep` and the cron — touches `convex/sweep.ts`, `convex/crons.ts`, `convex/sweep.test.ts` — tests T5, T6
+3. [x] Add ping, silence detection and `bye` to both sessions — touches `src/net/silence.ts`, `src/net/silence.test.ts`, `src/net/hostSession.ts`, `src/net/guestSession.ts`, `src/net/session.integration.test.ts` — tests T7, T8
+4. [x] Add the hidden-tab rule, heartbeats and `pagehide` leave to the match lifecycle, and the outcome states to the flow reducer — touches `src/net/visibility.ts`, `src/net/visibility.test.ts`, `src/ui/online/flow.ts`, `src/App.tsx` — tests T9
 
 **Must not change:** `reportRound` semantics; campaign pause on tab hide.
 
@@ -98,3 +98,6 @@ Matches have `status` and `endReason` (item 2), and Convex learns of round resul
 - 2026-10-18 — Planned.
 - 2026-10-18 — Plan approved.
 - 2026-10-19 — Started on branch story/disconnect-and-cleanup from origin/pvp-tank.
+- 2026-10-19 — Step 1 and 3 built. Deviations: ping, silence and bye live in src/net/silence.ts (LinkWatch) for the whole match rather than in hostSession/guestSession, which are rebuilt every round; leave during connecting or on a waiting code ends the match abandoned with endReason 'left' and no winner, since nobody has played. Step 2 (sweep, high-risk) held for the user's sign-off; step 4 built before it.
+- 2026-10-19 — User approved step 2 (sweep) on 2026-10-19, with the R9 rule added to R6: a waiting code whose host presence is older than 60 s is abandoned. Retention stays 24 h.
+- 2026-10-19 — Step 2 built. Dev check 2026-10-19: seeded synthetic stale and fresh rows for every rule (9 matches, 2 queue, 2 presence, 2 signals), ran sweep:sweep by hand: stale queue deleted, expired/idle waiting abandoned, stalled connecting abandoned (connection), silent playing abandoned (timeout), 25 h finished and abandoned deleted with presence, signal on a finished match deleted; fresh queue, connecting (guest 10 s ago), playing (fresh presence), 1 h finished and the live signal untouched. Then enabled the cron. Deviations: R7's 500-row cap applies per rule, not per table (7 rules × 500 stays far inside Convex's 16,000-write and 32,000-scan limits); queue gained a lastSeen index; synthetic rows left in dev clear themselves via the sweep.
