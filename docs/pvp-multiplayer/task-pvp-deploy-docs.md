@@ -79,6 +79,7 @@ Make `npm run deploy` publish both halves of the game — Convex functions to th
 - If Convex deploys and Wrangler then fails, the old site talks to the new backend. Keep backend changes backward compatible within a release, or accept a short window; `PROTOCOL_VERSION` covers client-to-client mismatches but not client-to-Convex.
 - The README's privacy wording depends on the item 12 decision (relay-only or not). Write it after that decision.
 - **Open: how to rate limit (R6).** Either `@convex-dev/rate-limiter` (Convex's official component; a new dependency, needs approval) or a hand-built counter table with a global per-minute cap (no dependency, more code to own). Decide when this item is planned in detail. Adding R6 means a new implementation step before the production deploy step.
+- **Revisit with R6: share-code randomness.** Private codes come from Convex's seeded `Math.random`; Convex's docs do not say whether that seed is unpredictable to clients. Kept for now by the user's decision (2026-10-18); the alternative is generating codes in a Convex action with `crypto.getRandomValues`. Decide together with the rate limiter, since both bound how fast codes can be guessed.
 
 ## Progress log
 

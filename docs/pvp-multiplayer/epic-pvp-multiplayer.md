@@ -88,7 +88,7 @@ Status column by matching the Slug column, so keep slugs exact.
 | 4 | story | pvp-sim-rules | Two-player PvP rules in the simulation | R6, R9 | 1 | released |
 | 5 | story | pvp-map-generator | Random symmetric PvP arena generator | R5, R9 | 1, 4 | released |
 | 6 | story | random-matchmaking | Random matchmaking queue | R2, R11 | 2, 3 | released |
-| 7 | story | private-match-codes | Private matches with share codes and links | R3, R11 | 2, 3 | planned |
+| 7 | story | private-match-codes | Private matches with share codes and links | R3, R11 | 2, 3 | released |
 | 8 | story | webrtc-connection | Peer-to-peer connection over Convex signaling | R4, R11 | 6 | planned |
 | 9 | story | host-authoritative-netcode | Host-authoritative networked game session | R4, R6 | 4, 5, 8 | planned |
 | 10 | story | pvp-match-screens | Online menus, PvP HUD and match flow | R2, R3, R6, R9, R10 | 6, 7, 9 | planned |
