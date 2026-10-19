@@ -26,3 +26,32 @@ export function iceServersFromEnv(raw: string | undefined): RTCIceServer[] {
   }
   return parsed as RTCIceServer[];
 }
+
+/** How long a connection waits for TURN before going ahead without it (R4). */
+export const TURN_WAIT_MS = 3000;
+
+/** Adds TURN servers from getTurn to base; relay is true only when TURN servers were obtained. Never rejects. */
+export function withTurn(
+  base: RTCIceServer[],
+  getTurn: () => Promise<{ iceServers: RTCIceServer[] }>,
+  timeoutMs = TURN_WAIT_MS,
+): Promise<{ iceServers: RTCIceServer[]; relay: boolean }> {
+  const without = { iceServers: base, relay: false };
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      console.error(`No TURN servers after ${timeoutMs} ms; connecting without a relay`);
+      resolve(without);
+    }, timeoutMs);
+    getTurn().then(
+      (turn) => {
+        clearTimeout(timer);
+        resolve(turn.iceServers.length > 0 ? { iceServers: [...base, ...turn.iceServers], relay: true } : without);
+      },
+      (err: unknown) => {
+        clearTimeout(timer);
+        console.error('Getting TURN servers failed; connecting without a relay', err);
+        resolve(without);
+      },
+    );
+  });
+}
