@@ -1,12 +1,12 @@
 import { ConvexError } from 'convex/values';
 
-export type JoinError = 'CODE_NOT_FOUND' | 'CODE_EXPIRED' | 'MATCH_FULL' | 'OWN_CODE' | 'ALREADY_IN_MATCH' | 'UNKNOWN';
+const KNOWN = ['CODE_NOT_FOUND', 'CODE_EXPIRED', 'MATCH_FULL', 'OWN_CODE', 'ALREADY_IN_MATCH'] as const;
 
-const KNOWN: readonly string[] = ['CODE_NOT_FOUND', 'CODE_EXPIRED', 'MATCH_FULL', 'OWN_CODE', 'ALREADY_IN_MATCH'];
+export type JoinError = (typeof KNOWN)[number] | 'UNKNOWN';
 
 /** The reason joinPrivate refused, for the join screen to explain. Only the server's ConvexError data counts. */
 export function joinErrorOf(err: unknown): JoinError {
-  if (err instanceof ConvexError && typeof err.data === 'string' && KNOWN.includes(err.data)) {
+  if (err instanceof ConvexError && typeof err.data === 'string' && (KNOWN as readonly string[]).includes(err.data)) {
     return err.data as JoinError;
   }
   return 'UNKNOWN';
