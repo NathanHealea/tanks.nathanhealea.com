@@ -44,6 +44,7 @@ Make `npm run deploy` publish both halves of the game — Convex functions to th
 - **R3** — The README explains how to play online (quick match, private code, share link), how to run with `npx convex dev`, which environment variables to set where, and how to deploy.
 - **R4** — The README states plainly what online play shares: a random per-visit ID and scores stored in Convex for up to 24 hours, and each player's IP address shared with their opponent (unless relay-only applies) and with Cloudflare's STUN/TURN servers.
 - **R5** — The production smoke test passes: two devices on different networks complete a quick match and a private match via share link, and the campaign still works offline after install.
+- **R6** — Before the public deploy, the public matchmaking functions (`joinQueue`, `createPrivate`, `joinPrivate`) are rate limited, so one client minting player ids in a loop cannot grow the `queue` and `matches` tables or exhaust the Convex function-call budget. Deferred here from the random-matchmaking security review (2026-10-18).
 
 ## Acceptance criteria
 
@@ -51,12 +52,14 @@ Make `npm run deploy` publish both halves of the game — Convex functions to th
 - **AC2** (R1) — Given an invalid `CONVEX_DEPLOY_KEY`, when `npm run deploy` runs, then it fails before `wrangler deploy`.
 - **AC3** (R2) — Given the repo, when `git ls-files` is checked, then no `.env*` other than `.env.example` is tracked.
 - **AC4** (R5) — Given the deployed site, when the smoke test runs, then every step passes and is recorded in the progress log.
+- **AC5** (R6) — Given a client calling `joinQueue` with a new player id in a tight loop, when it exceeds the limit, then further calls are rejected with a clear error and no rows are created for them.
 
 ## Test plan
 
 | ID | Covers | Test | File | Asserts |
 |----|--------|------|------|---------|
 | T1 | R2 | `no env files are tracked` | `src/repo.test.ts` | `git ls-files` output contains no `.env` paths except `.env.example` |
+| T2 | R6 | `matchmaking calls are rate limited` | `convex/rateLimit.test.ts` | Past the limit within one window, `joinQueue` throws and inserts nothing; the next window accepts calls again |
 
 **Not unit testable:** R1 — run `npm run deploy` once with a bad deploy key (AC2) and once for real (AC1). R3, R4 — read-through by someone who has not seen the code: can they run it locally from the README alone? R5 — manual smoke test on production: (1) quick match laptop vs phone on cellular; (2) private match via share link; (3) leave mid-match and see the forfeit; (4) install the PWA, go offline, play a campaign level; (5) check the Convex dashboard for errors.
 
@@ -75,8 +78,10 @@ Make `npm run deploy` publish both halves of the game — Convex functions to th
 
 - If Convex deploys and Wrangler then fails, the old site talks to the new backend. Keep backend changes backward compatible within a release, or accept a short window; `PROTOCOL_VERSION` covers client-to-client mismatches but not client-to-Convex.
 - The README's privacy wording depends on the item 12 decision (relay-only or not). Write it after that decision.
+- **Open: how to rate limit (R6).** Either `@convex-dev/rate-limiter` (Convex's official component; a new dependency, needs approval) or a hand-built counter table with a global per-minute cap (no dependency, more code to own). Decide when this item is planned in detail. Adding R6 means a new implementation step before the production deploy step.
 
 ## Progress log
 
 - 2026-10-18 — Planned.
 - 2026-10-18 — Plan approved.
+- 2026-10-18 — Added R6/AC5/T2: rate-limit the public matchmaking functions before the public deploy, deferred here from the random-matchmaking security review at the user's direction. Mechanism is an open decision.
