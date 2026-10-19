@@ -265,4 +265,69 @@ describe('privateMatch', () => {
     const after = await t.run((ctx) => ctx.db.get(match!._id));
     expect(after).toEqual(match);
   });
+
+  it('a code joined minutes after creation is a live connecting match', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const t = convexTest(schema, modules);
+    const host = crypto.randomUUID();
+    const guest = crypto.randomUUID();
+    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: host });
+
+    vi.setSystemTime(1_000_000 + 5 * 60_000);
+    await t.mutation(api.privateMatch.joinPrivate, { playerId: guest, code });
+    vi.setSystemTime(1_000_000 + 5 * 60_000 + 30_000);
+    expect(await t.query(api.matchmaking.myMatch, { playerId: host })).toMatchObject({ status: 'connecting' });
+    expect(await t.query(api.matchmaking.myMatch, { playerId: guest })).toMatchObject({ status: 'connecting' });
+
+    vi.setSystemTime(1_000_000 + 5 * 60_000 + 60_001);
+    expect(await t.query(api.matchmaking.myMatch, { playerId: host })).toBeNull();
+  });
+
+  it('a host with a code out cannot also quick match', async () => {
+    const t = convexTest(schema, modules);
+    const host = crypto.randomUUID();
+    await t.mutation(api.privateMatch.createPrivate, { playerId: host });
+    await expectConvexErrorAsync(t.mutation(api.matchmaking.joinQueue, { playerId: host }), 'ALREADY_IN_MATCH');
+    expect(await t.run((ctx) => ctx.db.query('queue').collect())).toHaveLength(0);
+  });
+
+  it('the host can keep the same code working longer', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const t = convexTest(schema, modules);
+    const host = crypto.randomUUID();
+    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: host });
+    const match = (await t.run((ctx) => ctx.db.query('matches').first()))!;
+
+    vi.setSystemTime(1_000_000 + 9 * 60_000);
+    const { expiresAt } = await t.mutation(api.privateMatch.extendPrivate, { playerId: host, matchId: match._id });
+    expect(expiresAt).toBe(1_000_000 + 9 * 60_000 + 600_000);
+
+    vi.setSystemTime(1_000_000 + 15 * 60_000);
+    const { matchId } = await t.mutation(api.privateMatch.joinPrivate, { playerId: crypto.randomUUID(), code });
+    expect(matchId).toBe(match._id);
+  });
+
+  it('only the host of a waiting match can extend its code', async () => {
+    const t = convexTest(schema, modules);
+    const host = crypto.randomUUID();
+    const guest = crypto.randomUUID();
+    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: host });
+    const match = (await t.run((ctx) => ctx.db.query('matches').first()))!;
+
+    await expectConvexErrorAsync(
+      t.mutation(api.privateMatch.extendPrivate, { playerId: crypto.randomUUID(), matchId: match._id }),
+      'Not in this match',
+    );
+    await t.mutation(api.privateMatch.joinPrivate, { playerId: guest, code });
+    await expectConvexErrorAsync(
+      t.mutation(api.privateMatch.extendPrivate, { playerId: guest, matchId: match._id }),
+      'Only the host can extend',
+    );
+    await expectConvexErrorAsync(
+      t.mutation(api.privateMatch.extendPrivate, { playerId: host, matchId: match._id }),
+      'CODE_NOT_FOUND',
+    );
+  });
 });

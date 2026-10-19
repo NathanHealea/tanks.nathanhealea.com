@@ -39,6 +39,19 @@ export const createPrivate = mutation({
   },
 });
 
+/** Keeps the same code working for another CODE_TTL_MS, so a friend still typing it is not cut off (WCAG 2.2.1). */
+export const extendPrivate = mutation({
+  args: { playerId: v.string(), matchId: v.id('matches') },
+  handler: async (ctx, { playerId, matchId }) => {
+    const { match, role } = await loadMatchAs(ctx, matchId, playerId);
+    if (role !== 'host') throw new ConvexError('Only the host can extend');
+    if (match.status !== 'waiting') throw new ConvexError('CODE_NOT_FOUND');
+    const expiresAt = Date.now() + CODE_TTL_MS;
+    await ctx.db.patch(match._id, { expiresAt });
+    return { expiresAt };
+  },
+});
+
 export const cancelPrivate = mutation({
   args: { playerId: v.string(), matchId: v.id('matches') },
   handler: async (ctx, { playerId, matchId }) => {
