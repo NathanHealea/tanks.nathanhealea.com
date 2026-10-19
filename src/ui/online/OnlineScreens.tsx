@@ -208,9 +208,10 @@ export function JoinWithCode(props: {
 }) {
   const [typed, setTyped] = useState(props.initialCode ? formatCode(props.initialCode) : '');
   const inputId = useId();
+  const hintId = useId();
   const errorId = useId();
   const [formatError, setFormatError] = useState(false);
-  const message = formatError ? 'Codes are 6 letters and numbers, like HK7-Q2M.' : props.error ? joinErrorMessage(props.error) : null;
+  const message = formatError ? "That isn't a match code." : props.error ? joinErrorMessage(props.error) : null;
 
   const input = useRef<HTMLInputElement>(null);
   const { announce } = props;
@@ -231,8 +232,13 @@ export function JoinWithCode(props: {
 
   return (
     <Card title={props.fromLink && props.initialCode ? `Join ${formatCode(props.initialCode)}?` : 'Join with code'}>
+      {/* A join link skips the online menu, so the person about to share their IP address reads it here. */}
+      <p className="online-note">{SHARING_NOTICE}</p>
       <form onSubmit={submit}>
         <label htmlFor={inputId}>Match code</label>
+        <p id={hintId} className="online-note">
+          6 letters and numbers, like HK7-Q2M.
+        </p>
         <input
           id={inputId}
           ref={input}
@@ -245,7 +251,7 @@ export function JoinWithCode(props: {
           autoCorrect="off"
           spellCheck={false}
           aria-invalid={message ? true : undefined}
-          aria-describedby={message ? errorId : undefined}
+          aria-describedby={message ? `${hintId} ${errorId}` : hintId}
           autoFocus={!props.fromLink}
         />
         {message && (
