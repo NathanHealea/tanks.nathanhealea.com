@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { playerId } from '../../src/net/identity';
 import { isPlayerId } from './ids';
 
 describe('isPlayerId', () => {
@@ -19,5 +20,9 @@ describe('isPlayerId', () => {
     // RegExp.test coerces its argument, so an array holding a valid id would otherwise pass.
     expect(isPlayerId([crypto.randomUUID()])).toBe(false);
     expect(isPlayerId(undefined)).toBe(false);
+  });
+
+  it('accepts the ids the client generates', () => {
+    expect(isPlayerId(playerId())).toBe(true);
   });
 });

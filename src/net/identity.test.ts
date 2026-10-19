@@ -50,6 +50,16 @@ describe('playerId', () => {
     vi.stubGlobal('localStorage', local);
     vi.stubGlobal('sessionStorage', session);
     vi.stubGlobal('document', document);
+    const urlWrites = vi.fn();
+    const location = {};
+    for (const part of ['href', 'hash', 'search', 'pathname']) {
+      Object.defineProperty(location, part, { get: () => '', set: urlWrites });
+    }
+    const history = { pushState: vi.fn(), replaceState: vi.fn() };
+    const indexedDB = { open: vi.fn(), deleteDatabase: vi.fn() };
+    vi.stubGlobal('location', location);
+    vi.stubGlobal('history', history);
+    vi.stubGlobal('indexedDB', indexedDB);
 
     vi.resetModules();
     const { playerId } = await import('./identity');
@@ -62,6 +72,10 @@ describe('playerId', () => {
       expect(storage.clear).not.toHaveBeenCalled();
     }
     expect(cookieWrites).not.toHaveBeenCalled();
+    expect(urlWrites).not.toHaveBeenCalled();
+    expect(history.pushState).not.toHaveBeenCalled();
+    expect(history.replaceState).not.toHaveBeenCalled();
+    expect(indexedDB.open).not.toHaveBeenCalled();
   });
 });
 
