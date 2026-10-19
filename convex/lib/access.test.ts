@@ -3,7 +3,7 @@ import { convexTest } from 'convex-test';
 import { describe, expect, it } from 'vitest';
 import type { Doc } from '../_generated/dataModel';
 import schema from '../schema';
-import { roleIn, toMatchView } from './access';
+import { loadMatchAs, roleIn, toMatchView } from './access';
 
 const modules = import.meta.glob('../**/*.*s');
 
@@ -68,8 +68,8 @@ describe('access', () => {
       hostRematch: true,
     });
 
-    for (const role of ['host', 'guest'] as const) {
-      const view = toMatchView(match, role);
+    for (const [role, playerId] of [['host', hostId], ['guest', guestId]] as const) {
+      const view = toMatchView(match, playerId);
       const json = JSON.stringify(view);
 
       expect(Object.keys(view).sort()).toEqual(
@@ -80,5 +80,30 @@ describe('access', () => {
       expect(view.role).toBe(role);
       expect(view.id).toBe(match._id);
     }
+  });
+
+  it('toMatchView refuses outsiders', async () => {
+    const match = await seedMatch({ guestId: crypto.randomUUID() });
+    expect(() => toMatchView(match, crypto.randomUUID())).toThrow('Not in this match');
+    expect(() => toMatchView(match, 'abc')).toThrow('Invalid player id');
+  });
+
+  it('loadMatchAs resolves a member and rejects everyone else', async () => {
+    const t = convexTest(schema, modules);
+    const hostId = crypto.randomUUID();
+    const guestId = crypto.randomUUID();
+    await t.run(async (ctx) => {
+      const base = { kind: 'quick' as const, status: 'playing' as const, seed: 1, round: 1, hostScore: 0, guestScore: 0, createdAt: 1, hostSeen: 1 };
+      const matchId = await ctx.db.insert('matches', { ...base, hostId, guestId });
+      const goneId = await ctx.db.insert('matches', { ...base, hostId, guestId });
+      await ctx.db.delete(goneId);
+
+      expect((await loadMatchAs(ctx, matchId, hostId)).role).toBe('host');
+      expect((await loadMatchAs(ctx, matchId, guestId)).match._id).toBe(matchId);
+      await expect(loadMatchAs(ctx, matchId, crypto.randomUUID())).rejects.toThrow('Not in this match');
+      await expect(loadMatchAs(ctx, goneId, hostId)).rejects.toThrow('Match not found');
+      // The id check comes first, so a bad id learns nothing about whether the match exists.
+      await expect(loadMatchAs(ctx, goneId, 'abc')).rejects.toThrow('Invalid player id');
+    });
   });
 });

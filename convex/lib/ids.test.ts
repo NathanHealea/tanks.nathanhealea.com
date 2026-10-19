@@ -16,5 +16,8 @@ describe('isPlayerId', () => {
     expect(isPlayerId('3f2504e04f8941d39a0c0305e82c3301')).toBe(false);
     expect(isPlayerId(' 3f2504e0-4f89-41d3-9a0c-0305e82c3301 ')).toBe(false);
     expect(isPlayerId('x' + crypto.randomUUID())).toBe(false);
+    // RegExp.test coerces its argument, so an array holding a valid id would otherwise pass.
+    expect(isPlayerId([crypto.randomUUID()])).toBe(false);
+    expect(isPlayerId(undefined)).toBe(false);
   });
 });
