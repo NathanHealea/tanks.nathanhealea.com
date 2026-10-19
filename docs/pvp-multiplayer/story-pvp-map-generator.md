@@ -2,13 +2,13 @@
 type: story
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: pvp-map-generator
-status: in-progress
+status: staged
 branch: story/pvp-map-generator
 worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/story-pvp-map-generator
 created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
-version:             # set by `wi stage`
+version: 0.4.0
 review_approved:     # set by `wi accept`
 pr:                  # set by `wi pr`
 tag:                 # set by `wi release`; the tag sits on the branch's last commit
@@ -68,6 +68,8 @@ Generate a new random arena for every PvP round from a seed. Arenas are 20×14 l
 | T8 | R8 | `generation is fast` | `src/game/pvpMaps.test.ts` | 200 arenas generate in under 4 s (generous bound to avoid CI flake) |
 | T9 | R9 | `campaign levels are unchanged` | `src/game/levels.test.ts` (existing) | Item 1's T2 passes after the shared-module refactor |
 | T10 | R1 | `createPvpGame accepts every arena` | `src/game/pvpMaps.test.ts` | `createPvpGame(generatePvpMap(s), s)` does not throw for seeds 1–100 |
+| T11 | R5 | `most arenas have cork for mines to break` | `src/game/pvpMaps.test.ts` | Over 80% of seeds 1–1000 contain cork (92% today; the spawn-front walls alone give about 63%) |
+| T12 | R6 | `roundSeed rejects seeds that would lose their randomness` | `src/game/pvpMaps.test.ts` | Fractional, NaN, infinite, negative and ≥ 2³² seeds throw; 0 and 2³²−1 do not |
 
 **Not unit testable:** Whether the arenas are fun. Verify by eye: generate 20 arenas, play several rounds in item 10's dev build, tune segment counts and cork share.
 
@@ -93,3 +95,5 @@ Generate a new random arena for every PvP round from a seed. Arenas are 20×14 l
 - 2026-10-18 — Plan approved.
 - 2026-10-18 — Started on branch story/pvp-map-generator from origin/pvp-tank.
 - 2026-10-18 — Steps 2 and 3 landed in one commit (same file). Fallback arena is generated from seed 20261018, not hand-drawn. Mutations: dropping mirroring, reachability, density or round variation fail tests; dropping the line-of-sight or cover check changes no output because the spawn-front wall guarantees both, so those checks are kept as a guard and the tests assert the properties directly.
+- 2026-10-18 — Staging review: code review LOW (seed truncation) fixed; test audit HIGH (connectivity test shared the generator's reachable) fixed with an independent flood fill; seed range made unsigned-only; fallback copy, cork presence and seed edges now tested (T11, T12). Items 6 and 7 plans updated to create unsigned 32-bit seeds.
+- 2026-10-18 — Staged: verification passed; version 0.3.0 → 0.4.0; no changelog file.
