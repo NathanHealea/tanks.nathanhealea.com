@@ -16,7 +16,7 @@ import { TouchControls } from '../TouchControls';
 import { initialScreen, reduce, type OnlineAction, type OnlineEffect, type OnlineScreen } from './flow';
 import { Connecting, ConnectFailed, Countdown, LeaveConfirm, MatchResult, PvpHud } from './MatchScreens';
 import { rematchErrorMessage, roundResultText, scoreText } from './messages';
-import { JoinWithCode, OnlineMenu, PrivateWaiting, Searching, Unavailable } from './OnlineScreens';
+import { JoinWithCode, OnlineMenu, PrivateWaiting, SEARCH_FAILED, Searching, Unavailable } from './OnlineScreens';
 
 const isTouch = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
 
@@ -60,7 +60,21 @@ export function OnlinePlay(props: Props) {
   const handledMatch = useRef<string | null>(null);
   const lastMatchId = useRef<Id<'matches'> | null>(null);
 
-  const announce = useCallback((message: string) => setAnnouncement(message), []);
+  // Setting the same text again changes nothing, so a repeat gets a trailing no-break space to be spoken again.
+  const announce = useCallback(
+    (message: string) => setAnnouncement((prev) => (prev === message ? `${message}\u00a0` : message)),
+    [],
+  );
+  const showError = useCallback(
+    (message: string) => {
+      setError(message);
+      announce(message);
+    },
+    [announce],
+  );
+  // The host starts the next round in the same task that ends the last one, so the result rides along with the
+  // next round's announcement instead of being replaced by it before it is spoken.
+  const pendingResult = useRef<string | null>(null);
 
   const endConnection = useCallback(() => {
     matchRef.current?.dispose();
@@ -113,17 +127,19 @@ export function OnlinePlay(props: Props) {
       props.onSession(session);
       setCountdown(session.countdownLeft);
       dispatch({ type: 'roundStart', round });
-      announce(`Round ${round} starts in 3.`);
+      const result = pendingResult.current ? `${pendingResult.current} ` : '';
+      pendingResult.current = null;
+      announce(`${result}Round ${round} starts in 3.`);
     };
     const endRound = (outcome: Outcome, you: number, them: number, round: number, over: boolean) => {
       setLastResult(outcome);
       setScore({ you, them });
-      announce(`${roundResultText(outcome)}. ${scoreText(you, them)}.`);
       if (over) {
         dispatch({ type: 'matchEnd', you, them });
         sessionRef.current = null;
         props.onSession(null);
       } else {
+        pendingResult.current = `${roundResultText(outcome)}. ${scoreText(you, them)}.`;
         dispatch({ type: 'roundEnd', round, outcome, you, them });
       }
     };
@@ -206,7 +222,7 @@ export function OnlinePlay(props: Props) {
         if (!id) break;
         convex.mutation(api.matches.requestRematch, { playerId: me, matchId: id }).catch((err) => {
           console.error('Requesting a rematch failed', err);
-          setError(rematchErrorMessage(err));
+          showError(rematchErrorMessage(err));
           dispatch({ type: 'cancelRematch' });
         });
         break;
@@ -251,19 +267,19 @@ export function OnlinePlay(props: Props) {
   }, [priv.joinError, screen, dispatch]);
 
   useEffect(() => {
-    if (priv.createError) setError(priv.createError === 'ALREADY_IN_MATCH' ? "You're already in a match." : 'Making a code failed. Try again.');
-  }, [priv.createError]);
+    if (priv.createError) showError(priv.createError === 'ALREADY_IN_MATCH' ? "You're already in a match." : 'Making a code failed. Try again.');
+  }, [priv.createError, showError]);
+
+  useEffect(() => {
+    if (quick.state === 'error' && screen.name === 'searching') announce(SEARCH_FAILED);
+  }, [quick.state, screen.name, announce]);
 
   // The countdown is read from the session; when it ends, play starts on both screens.
   useEffect(() => {
     if (screen.name !== 'countdown') return;
-    let last = -1;
     const timer = setInterval(() => {
       const left = sessionRef.current?.countdownLeft ?? 0;
       setCountdown(left);
-      const whole = Math.ceil(left);
-      if (whole !== last && whole > 0) announce(String(whole));
-      last = whole;
       if (left <= 0) {
         announce('Go.');
         dispatch({ type: 'countdownDone' });
@@ -347,6 +363,7 @@ export function OnlinePlay(props: Props) {
           fromLink={props.joinCode !== null && screen.code === props.joinCode}
           error={screen.error}
           busy={screen.busy}
+          announce={announce}
           onSubmit={(code) => dispatch({ type: 'submitCode', code })}
           onBack={() => dispatch({ type: 'back' })}
         />

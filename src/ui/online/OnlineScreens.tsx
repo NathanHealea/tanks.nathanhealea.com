@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import type { JoinError } from '../../net/joinErrors';
 import { buildJoinUrl, formatCode, normalizeCode } from '../../net/share';
 import { joinErrorMessage, spokenCode } from './messages';
@@ -73,6 +73,11 @@ export function Searching({ failed, onCancel }: { failed: boolean; onCancel(): v
   );
 }
 
+function shareFailed(err: unknown) {
+  // Closing the share sheet rejects with AbortError; that is the player's choice, not a failure.
+  if (!(err instanceof DOMException && err.name === 'AbortError')) console.error('Sharing failed', err);
+}
+
 function useSecondsLeft(expiresAt: number | undefined): number | null {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -103,6 +108,10 @@ export function PrivateWaiting(props: {
   useEffect(() => {
     if (warning) announce('Your match code expires in one minute.');
   }, [warning, announce]);
+  // Focus starts on the button after the code, so a screen reader user would not otherwise hear it.
+  useEffect(() => {
+    if (code) announce(`Match code: ${spokenCode(code)}`);
+  }, [code, announce]);
 
   const copy = async (text: string, what: string) => {
     try {
@@ -137,8 +146,10 @@ export function PrivateWaiting(props: {
       {code ? (
         <>
           <p>Send this code or link to a friend.</p>
-          <p className="code-display" aria-label={`Match code: ${spokenCode(code)}`}>
-            {formatCode(code)}
+          {/* aria-label is not allowed on a paragraph, so the spelled-out code goes in hidden text instead. */}
+          <p className="code-display">
+            <span className="sr-only">Match code: {spokenCode(code)}</span>
+            <span aria-hidden="true">{formatCode(code)}</span>
           </p>
           <p className="link-text">{link}</p>
           {secondsLeft !== null && (
@@ -147,18 +158,18 @@ export function PrivateWaiting(props: {
             </p>
           )}
           <div className="button-column">
-            <button type="button" className="primary" onClick={() => copy(code, 'Code')} autoFocus>
-              {copied === 'Code' ? 'Code copied' : 'Copy code'}
-            </button>
             {canShare ? (
-              <button type="button" className="primary" onClick={() => navigator.share({ title: 'Tanks', url: link }).catch(() => {})}>
+              <button type="button" className="primary" onClick={() => navigator.share({ title: 'Tanks', url: link }).catch(shareFailed)} autoFocus>
                 Share link
               </button>
             ) : (
-              <button type="button" className="primary" onClick={() => copy(link, 'Link')}>
+              <button type="button" className="primary" onClick={() => copy(link, 'Link')} autoFocus>
                 {copied === 'Link' ? 'Link copied' : 'Copy link'}
               </button>
             )}
+            <button type="button" className="primary" onClick={() => copy(code, 'Code')}>
+              {copied === 'Code' ? 'Code copied' : 'Copy code'}
+            </button>
             <button type="button" className={warning ? 'primary' : 'secondary'} onClick={props.onKeep}>
               Keep this code
             </button>
@@ -189,6 +200,7 @@ export function JoinWithCode(props: {
   busy: boolean;
   onSubmit(code: string): void;
   onBack(): void;
+  announce(message: string): void;
 }) {
   const [typed, setTyped] = useState(props.initialCode ? formatCode(props.initialCode) : '');
   const inputId = useId();
@@ -196,8 +208,18 @@ export function JoinWithCode(props: {
   const [formatError, setFormatError] = useState(false);
   const message = formatError ? 'Codes are 6 letters and numbers, like HK7-Q2M.' : props.error ? joinErrorMessage(props.error) : null;
 
+  const input = useRef<HTMLInputElement>(null);
+  const { announce } = props;
+  // Focus returns to the field so its error description is read with it.
+  useEffect(() => {
+    if (!message) return;
+    announce(message);
+    input.current?.focus();
+  }, [message, announce]);
+
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
+    if (props.busy) return;
     const code = normalizeCode(typed);
     setFormatError(!code);
     if (code) props.onSubmit(code);
@@ -209,6 +231,7 @@ export function JoinWithCode(props: {
         <label htmlFor={inputId}>Match code</label>
         <input
           id={inputId}
+          ref={input}
           className="code-input"
           value={typed}
           onChange={(e) => setTyped(e.target.value)}
@@ -227,7 +250,8 @@ export function JoinWithCode(props: {
           </p>
         )}
         <div className="button-column">
-          <button type="submit" className="primary" disabled={props.busy} autoFocus={props.fromLink}>
+          {/* aria-disabled rather than disabled, so focus is not dropped from the button while joining. */}
+          <button type="submit" className="primary" aria-disabled={props.busy} autoFocus={props.fromLink}>
             {props.busy ? 'Joining…' : 'Join'}
           </button>
           <button type="button" className="secondary" onClick={props.onBack}>

@@ -299,7 +299,8 @@ kbd {
   min-height: 48px;
 }
 
-.primary:disabled {
+.primary:disabled,
+.primary[aria-disabled='true'] {
   opacity: 0.55;
 }
 
