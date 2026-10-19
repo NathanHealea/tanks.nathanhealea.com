@@ -190,6 +190,7 @@ export function OnlinePlay(props: Props) {
 
   function newCode() {
     lastCode.current = {};
+    expiredRef.current = false;
     setCodeExpired(false);
     void priv.create();
   }
@@ -252,15 +253,21 @@ export function OnlinePlay(props: Props) {
     dispatch({ type: 'matched' });
   }, [priv.match, dispatch]);
 
-  // A waiting code that stops being active has expired (myMatch drops it): say so instead of vanishing.
+  // The waiting screen's own timer reaching zero is the usual signal: myMatch filters on the time, but a query only
+  // re-runs when its data changes, so it can keep reporting a code that has expired.
+  const expiredRef = useRef(false);
+  const expire = useCallback(() => {
+    if (expiredRef.current) return;
+    expiredRef.current = true;
+    setCodeExpired(true);
+    announce('Your match code has expired.');
+  }, [announce]);
+
   useEffect(() => {
     if (screen.name !== 'privateWaiting' || priv.match) return;
     const { expiresAt } = lastCode.current;
-    if (expiresAt !== undefined && Date.now() > expiresAt) {
-      setCodeExpired(true);
-      announce('Your match code has expired.');
-    }
-  }, [screen.name, priv.match, announce]);
+    if (expiresAt !== undefined && Date.now() > expiresAt) expire();
+  }, [screen.name, priv.match, expire]);
 
   useEffect(() => {
     if (priv.joinError && screen.name === 'joining' && screen.busy) dispatch({ type: 'joinFailed', error: priv.joinError });
@@ -350,6 +357,7 @@ export function OnlinePlay(props: Props) {
           code={priv.match?.code ?? (codeExpired ? lastCode.current.code : undefined)}
           expiresAt={priv.match?.expiresAt}
           expired={codeExpired}
+          onExpired={expire}
           error={error}
           onKeep={() => void priv.extend()}
           onNewCode={newCode}

@@ -95,6 +95,7 @@ export function PrivateWaiting(props: {
   onKeep(): void;
   onNewCode(): void;
   onCancel(): void;
+  onExpired(): void;
   announce(message: string): void;
 }) {
   const { code, expiresAt, expired } = props;
@@ -104,10 +105,13 @@ export function PrivateWaiting(props: {
   const canShare = typeof navigator.share === 'function';
   const warning = secondsLeft !== null && secondsLeft <= 60 && !expired;
 
-  const { announce } = props;
+  const { announce, onExpired } = props;
   useEffect(() => {
     if (warning) announce('Your match code expires in one minute.');
   }, [warning, announce]);
+  useEffect(() => {
+    if (secondsLeft === 0 && !expired) onExpired();
+  }, [secondsLeft, expired, onExpired]);
   // Focus starts on the button after the code, so a screen reader user would not otherwise hear it.
   useEffect(() => {
     if (code) announce(`Match code: ${spokenCode(code)}`);
