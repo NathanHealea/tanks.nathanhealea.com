@@ -114,7 +114,7 @@ export function PvpHud(props: {
     <div className="hud" inert={props.inert}>
       <div className="hud-top" style={{ top: `max(env(safe-area-inset-top), ${props.boardTop - TOP_BAR_HEIGHT - TOP_BAR_GAP}px)` }}>
         <div className="panel">
-          Round {props.round} · {scoreText(props.you, props.them)} · You are {colorName(props.localPlayerId)}
+          Round {props.round} · {scoreText(props.you, props.them)} · You are {colorName(props.localPlayerId)}, ringed
         </div>
         <div className="hud-buttons">
           <button type="button" className="panel button-small" onClick={props.onToggleMute} aria-pressed={props.muted}>

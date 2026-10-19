@@ -91,7 +91,7 @@ function World(props: Props) {
       <CameraRig grid={session.state.grid} effects={effects} onBoardTop={props.onBoardTop} />
       <Arena grid={session.state.grid} version={wallVersion} />
       {session.state.tanks.map((t) => (
-        <Tank key={t.id} tank={t} effects={effects} />
+        <Tank key={t.id} tank={t} effects={effects} marked={session.state.mode === 'pvp' && t.id === session.localPlayerId} />
       ))}
       <Projectiles getState={getState} effects={effects} />
       <Particles effects={effects} />

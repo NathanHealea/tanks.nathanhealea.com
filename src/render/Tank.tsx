@@ -10,10 +10,12 @@ const TRACK_SPACING = 0.22;
 interface Props {
   tank: TankState;
   effects: Effects;
+  /** Rings the local player's tank in a match, so which tank is yours never rests on color alone (WCAG 1.4.1). */
+  marked?: boolean;
 }
 
 /** Built from primitives so it can be swapped for a glTF model later without touching the simulation. */
-export function Tank({ tank, effects }: Props) {
+export function Tank({ tank, effects, marked = false }: Props) {
   const root = useRef<Group>(null);
   const turret = useRef<Group>(null);
   const deadFor = useRef(0);
@@ -56,6 +58,12 @@ export function Tank({ tank, effects }: Props) {
 
   return (
     <group ref={root}>
+      {marked && (
+        <mesh position={[0, 0.02, 0]} rotation-x={-Math.PI / 2}>
+          <ringGeometry args={[0.62, 0.74, 40]} />
+          <meshBasicMaterial color="#f6f1e7" />
+        </mesh>
+      )}
       {[-0.3, 0.3].map((x) => (
         <group key={x} position={[x, 0.12, 0]}>
           <mesh castShadow receiveShadow>
