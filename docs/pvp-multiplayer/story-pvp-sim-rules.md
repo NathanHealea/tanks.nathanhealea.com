@@ -2,7 +2,7 @@
 type: story
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: pvp-sim-rules
-status: staged
+status: released
 branch: story/pvp-sim-rules
 worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/story-pvp-sim-rules
 created: 2026-10-18
@@ -11,7 +11,7 @@ commit_type:         # optional override for the release subject type (default: 
 version: 0.3.0
 review_approved: 2026-10-18
 pr:                  # set by `wi pr`
-tag:                 # set by `wi release`; the tag sits on the branch's last commit
+tag: v0.3.0
 ---
 
 # Two-player PvP rules in the simulation
@@ -98,3 +98,4 @@ Teach the simulation to run a PvP round: two player tanks on opposing teams, no 
 - 2026-10-18 — Test audit: 25 of 32 mutants killed; 3 equivalent, 1 unreachable guard, 1 untouched campaign code; fixed the 2 real gaps (PvP outcomeTime, exact spawn error) and both are now killed. Comment and import order corrected.
 - 2026-10-18 — Staged: verification passed; version 0.2.0 → 0.3.0; no changelog file.
 - 2026-10-18 — Review approved.
+- 2026-10-18 — Released 0.3.0 as v0.3.0.
