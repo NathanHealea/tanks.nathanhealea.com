@@ -186,6 +186,14 @@ export function OnlinePlay(props: Props) {
         });
         break;
       }
+      case 'cancelRematch': {
+        const id = matchRef.current?.id ?? lastMatchId.current;
+        if (!id) break;
+        convex.mutation(api.matches.cancelRematch, { playerId: me, matchId: id }).catch((err) => {
+          console.error('Withdrawing a rematch request failed', err);
+        });
+        break;
+      }
       case 'leaveMatch':
         endConnection();
         break;

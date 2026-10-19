@@ -42,6 +42,7 @@ export type OnlineEffect =
   | { type: 'joinPrivate'; code: string }
   | { type: 'connect' }
   | { type: 'requestRematch' }
+  | { type: 'cancelRematch' }
   | { type: 'leaveMatch' };
 
 type Result = { screen: OnlineScreen; effects: OnlineEffect[] };
@@ -98,8 +99,13 @@ export function reduce(screen: OnlineScreen, action: OnlineAction): Result {
       if (action.type === 'requestRematch' && screen.rematch === 'none') {
         return go({ ...screen, rematch: 'waiting' }, { type: 'requestRematch' });
       }
-      if (action.type === 'cancelRematch' && screen.rematch === 'waiting') return go({ ...screen, rematch: 'none' });
+      if (action.type === 'cancelRematch' && screen.rematch === 'waiting') {
+        return go({ ...screen, rematch: 'none' }, { type: 'cancelRematch' });
+      }
       if (action.type === 'matched' && screen.rematch === 'waiting') return go({ name: 'connecting' }, { type: 'connect' });
+      if (action.type === 'back' && screen.rematch === 'waiting') {
+        return go({ name: 'menu' }, { type: 'cancelRematch' }, { type: 'leaveMatch' });
+      }
       if (action.type === 'back') return go({ name: 'menu' }, { type: 'leaveMatch' });
       return same;
     case 'unavailable':

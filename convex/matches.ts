@@ -59,6 +59,8 @@ export const requestRematch = mutation({
     else flags.guestRematch = true;
     await ctx.db.patch(matchId, flags);
     if (!flags.hostRematch || !flags.guestRematch || match.guestId === undefined) return { matchId: null };
+    // The first request may be stale: that player can have moved on to another match without withdrawing it.
+    if (await activeMatchFor(ctx, role === 'host' ? match.guestId : match.hostId)) throw new ConvexError('OPPONENT_LEFT');
 
     const now = Date.now();
     const rematchId = await ctx.db.insert('matches', {
@@ -76,5 +78,16 @@ export const requestRematch = mutation({
       rematchOf: matchId,
     });
     return { matchId: rematchId };
+  },
+});
+
+/** Withdraws the caller's rematch request. Once both have asked, the rematch already exists and this changes nothing. */
+export const cancelRematch = mutation({
+  args: { playerId: v.string(), matchId: v.id('matches') },
+  handler: async (ctx, { playerId, matchId }): Promise<null> => {
+    const { match, role } = await loadMatchAs(ctx, matchId, playerId);
+    if (match.hostRematch && match.guestRematch) return null;
+    await ctx.db.patch(matchId, role === 'host' ? { hostRematch: false } : { guestRematch: false });
+    return null;
   },
 });

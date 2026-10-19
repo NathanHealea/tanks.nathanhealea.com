@@ -173,6 +173,39 @@ describe('matches', () => {
     expect(await t.run((ctx) => ctx.db.query('matches').collect())).toHaveLength(3);
   });
 
+  it('a withdrawn rematch request is not counted', async () => {
+    const t = convexTest(schema, modules);
+    const { matchId, hostId, guestId } = await seedFinishedMatch(t);
+    await t.mutation(api.matches.requestRematch, { playerId: hostId, matchId });
+    await t.mutation(api.matches.cancelRematch, { playerId: hostId, matchId });
+    expect((await t.run((ctx) => ctx.db.get(matchId)))?.hostRematch).toBe(false);
+
+    expect(await t.mutation(api.matches.requestRematch, { playerId: guestId, matchId })).toEqual({ matchId: null });
+    expect(await t.run((ctx) => ctx.db.query('matches').collect())).toHaveLength(1);
+    await expectConvexErrorAsync(
+      t.mutation(api.matches.cancelRematch, { playerId: crypto.randomUUID(), matchId }),
+      'Not in this match',
+    );
+  });
+
+  it('withdrawing after the rematch exists changes nothing', async () => {
+    const t = convexTest(schema, modules);
+    const { matchId, hostId, guestId } = await seedFinishedMatch(t);
+    await t.mutation(api.matches.requestRematch, { playerId: hostId, matchId });
+    await t.mutation(api.matches.requestRematch, { playerId: guestId, matchId });
+    await t.mutation(api.matches.cancelRematch, { playerId: hostId, matchId });
+    expect(await t.run((ctx) => ctx.db.get(matchId))).toMatchObject({ hostRematch: true, guestRematch: true });
+  });
+
+  it('a rematch is not opened while the other player is in another match', async () => {
+    const t = convexTest(schema, modules);
+    const { matchId, hostId, guestId } = await seedFinishedMatch(t);
+    await t.mutation(api.matches.requestRematch, { playerId: hostId, matchId });
+    await t.mutation(api.privateMatch.createPrivate, { playerId: hostId });
+    await expectConvexErrorAsync(t.mutation(api.matches.requestRematch, { playerId: guestId, matchId }), 'OPPONENT_LEFT');
+    expect(await t.run((ctx) => ctx.db.query('matches').collect())).toHaveLength(2);
+  });
+
   it('a player already in another match cannot rematch', async () => {
     const t = convexTest(schema, modules);
     const { matchId, hostId } = await seedFinishedMatch(t);

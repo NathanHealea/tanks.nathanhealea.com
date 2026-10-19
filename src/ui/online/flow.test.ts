@@ -113,7 +113,7 @@ describe('online flow transitions', () => {
       effects: [{ type: 'requestRematch' }],
     });
 
-    expect(reduce(asked.screen, { type: 'cancelRematch' }).screen).toEqual(result);
+    expect(reduce(asked.screen, { type: 'cancelRematch' })).toEqual({ screen: result, effects: [{ type: 'cancelRematch' }] });
 
     expect(reduce(asked.screen, { type: 'matched' })).toEqual({
       screen: { name: 'connecting' },
@@ -126,7 +126,10 @@ describe('online flow transitions', () => {
     expect(reduce(result, { type: 'back' })).toEqual({ screen: MENU, effects: [{ type: 'leaveMatch' }] });
 
     const waiting: OnlineScreen = { ...result, rematch: 'waiting' };
-    expect(reduce(waiting, { type: 'back' })).toEqual({ screen: MENU, effects: [{ type: 'leaveMatch' }] });
+    expect(reduce(waiting, { type: 'back' })).toEqual({
+      screen: MENU,
+      effects: [{ type: 'cancelRematch' }, { type: 'leaveMatch' }],
+    });
   });
 
   it('stays on the menu on back; the App closes the online flow', () => {
