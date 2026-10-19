@@ -121,6 +121,11 @@ describe('online flow transitions', () => {
     });
   });
 
+  it('a refused rematch returns to the choice without withdrawing anything', () => {
+    const waiting: OnlineScreen = { name: 'matchResult', won: true, you: 3, them: 1, rematch: 'waiting' };
+    expect(reduce(waiting, { type: 'rematchFailed' })).toEqual({ screen: { ...waiting, rematch: 'none' }, effects: [] });
+  });
+
   it('leaves the match from the result screen', () => {
     const result: OnlineScreen = { name: 'matchResult', won: false, you: 0, them: 3, rematch: 'none' };
     expect(reduce(result, { type: 'back' })).toEqual({ screen: MENU, effects: [{ type: 'leaveMatch' }] });

@@ -30,6 +30,7 @@ export type OnlineAction =
   | { type: 'matchEnd'; you: number; them: number }
   | { type: 'requestRematch' }
   | { type: 'cancelRematch' }
+  | { type: 'rematchFailed' }
   /** Leave match? → Leave: forfeits a live match. */
   | { type: 'leave' };
 
@@ -99,6 +100,8 @@ export function reduce(screen: OnlineScreen, action: OnlineAction): Result {
       if (action.type === 'requestRematch' && screen.rematch === 'none') {
         return go({ ...screen, rematch: 'waiting' }, { type: 'requestRematch' });
       }
+      // The server refused the request, so there is nothing to withdraw.
+      if (action.type === 'rematchFailed' && screen.rematch === 'waiting') return go({ ...screen, rematch: 'none' });
       if (action.type === 'cancelRematch' && screen.rematch === 'waiting') {
         return go({ ...screen, rematch: 'none' }, { type: 'cancelRematch' });
       }

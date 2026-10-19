@@ -223,8 +223,8 @@ export function OnlinePlay(props: Props) {
         if (!id) break;
         convex.mutation(api.matches.requestRematch, { playerId: me, matchId: id }).catch((err) => {
           console.error('Requesting a rematch failed', err);
+          dispatch({ type: 'rematchFailed' });
           showError(rematchErrorMessage(err));
-          dispatch({ type: 'cancelRematch' });
         });
         break;
       }
