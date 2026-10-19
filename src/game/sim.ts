@@ -9,6 +9,7 @@ import {
   EMPTY,
   type GameEvent,
   type GameState,
+  type Grid,
   type PlayerInput,
   type TankState,
   type Vec2,
@@ -58,6 +59,23 @@ export function createGame(levelIndex: number, playerIds: string[], seed: number
     }
   }
 
+  return newState(grid, tanks, seed, difficulty, 'campaign');
+}
+
+/** A PvP round on any layout with P and 2 spawns: p1 against p2 on opposing teams, no AI even if the layout has enemy letters. */
+export function createPvpGame(rows: string[], seed: number): GameState {
+  const { grid, spawns } = parseLevel(rows);
+  const p1 = spawns.find((s) => s.ch === 'P');
+  const p2 = spawns.find((s) => s.ch === '2');
+  if (!p1 || !p2) throw new Error('A PvP layout needs both a P and a 2 spawn');
+  const tanks = [
+    makeTank('p1', 'player', 0, cellCenter(grid, p1.col, p1.row), PLAYER_COLORS.p1, Math.PI / 2),
+    makeTank('p2', 'player', 1, cellCenter(grid, p2.col, p2.row), PLAYER_COLORS.p2, -Math.PI / 2),
+  ];
+  return newState(grid, tanks, seed, 0, 'pvp');
+}
+
+function newState(grid: Grid, tanks: TankState[], seed: number, difficulty: number, mode: GameState['mode']): GameState {
   return {
     tick: 0,
     time: 0,
@@ -68,7 +86,7 @@ export function createGame(levelIndex: number, playerIds: string[], seed: number
     tanks,
     bullets: [],
     mines: [],
-    mode: 'campaign',
+    mode,
     winner: null,
     outcome: null,
     outcomeTime: 0,
