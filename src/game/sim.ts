@@ -6,6 +6,7 @@ import { forward, wrapAngle } from './math';
 import { TANK_STATS, type TankKind } from './tanks';
 import {
   CORK,
+  isPvpPlayer,
   EMPTY,
   type GameEvent,
   type GameState,
@@ -296,8 +297,10 @@ function updateOutcome(s: GameState): void {
     // Checked after every hit and blast in the tick, so two tanks popped on one tick read as a draw, not a win.
     const alive = s.tanks.filter((t) => t.alive);
     if (alive.length === 1) {
+      const id = alive[0].id;
+      if (!isPvpPlayer(id)) throw new Error(`PvP tank ${id} is not p1 or p2`);
       s.outcome = 'won';
-      s.winner = alive[0].id;
+      s.winner = id;
     } else if (alive.length === 0) {
       s.outcome = 'draw';
     }

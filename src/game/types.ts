@@ -52,6 +52,13 @@ export interface MineState {
   age: number;
 }
 
+export type PvpPlayer = 'p1' | 'p2';
+
+// A runtime check, not just a type: round results reach the host from game state and, later, the network.
+export function isPvpPlayer(value: unknown): value is PvpPlayer {
+  return value === 'p1' || value === 'p2';
+}
+
 export const EMPTY = 0;
 export const SOLID = 1;
 export const CORK = 2;
@@ -76,7 +83,7 @@ export interface GameState {
   mines: MineState[];
   mode: 'campaign' | 'pvp';
   /** PvP only: the surviving tank's id, or null for a draw or while the round is on. */
-  winner: string | null;
+  winner: PvpPlayer | null;
   outcome: 'won' | 'lost' | 'draw' | null;
   outcomeTime: number;
 }

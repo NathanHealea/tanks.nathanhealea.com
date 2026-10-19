@@ -29,4 +29,12 @@ describe('match', () => {
     expect(() => applyRound(score, 'p1')).toThrow(Error);
     expect(() => applyRound(score, null)).toThrow(Error);
   });
+
+  it('rejects a round result that is not p1, p2 or a draw', () => {
+    const score = createMatchScore();
+    for (const junk of ['constructor', '__proto__', 'p3', '', 1, undefined]) {
+      expect(() => applyRound(score, junk as unknown as 'p1')).toThrow('Not a round result');
+    }
+    expect(score).toEqual(createMatchScore());
+  });
 });

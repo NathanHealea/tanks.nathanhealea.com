@@ -1,6 +1,5 @@
 import { ROUNDS_TO_WIN } from './config';
-
-export type PvpPlayer = 'p1' | 'p2';
+import { isPvpPlayer, type PvpPlayer } from './types';
 
 export interface MatchScore {
   round: number;
@@ -15,6 +14,7 @@ export function createMatchScore(): MatchScore {
 /** Scores one finished round; `null` is a draw and counts as a round played with no win. */
 export function applyRound(score: MatchScore, result: PvpPlayer | null): MatchScore {
   if (score.winner) throw new Error(`The match is over; ${score.winner} already won`);
+  if (result !== null && !isPvpPlayer(result)) throw new Error(`Not a round result: ${String(result)}`);
   const wins = { ...score.wins };
   if (result) wins[result]++;
   const winner = result && wins[result] >= ROUNDS_TO_WIN ? result : null;
