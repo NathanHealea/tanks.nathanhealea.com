@@ -239,10 +239,11 @@ describe('matchmaking', () => {
     const t = convexTest(schema, modules);
     const a = crypto.randomUUID();
     const b = crypto.randomUUID();
+    // Seeded directly: a live b would pair with a through joinQueue, and a stale b would be swept by it.
     await t.run(async (ctx) => {
-      await ctx.db.insert('queue', { playerId: b, joinedAt: 999_000, lastSeen: 999_000 });
+      await ctx.db.insert('queue', { playerId: b, joinedAt: Date.now(), lastSeen: Date.now() });
+      await ctx.db.insert('queue', { playerId: a, joinedAt: Date.now(), lastSeen: Date.now() });
     });
-    await t.mutation(api.matchmaking.joinQueue, { playerId: a });
 
     expect(await t.mutation(api.matchmaking.leaveQueue, { playerId: a })).toBeNull();
     const afterFirst = await t.run((ctx) => ctx.db.query('queue').collect());
@@ -271,5 +272,45 @@ describe('matchmaking', () => {
     expect(await t.mutation(api.matchmaking.queueHeartbeat, { playerId: b })).toBeNull();
     const afterStranger = await t.run((ctx) => ctx.db.query('queue').collect());
     expect(afterStranger.map((row) => row.playerId)).toEqual([a]);
+  });
+
+  it('stale entries at the head of the queue do not block pairing', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const t = convexTest(schema, modules);
+    const live = crypto.randomUUID();
+    await t.run(async (ctx) => {
+      for (let i = 0; i < 45; i++) {
+        await ctx.db.insert('queue', { playerId: crypto.randomUUID(), joinedAt: 1_000 + i, lastSeen: 2_000 });
+      }
+      await ctx.db.insert('queue', { playerId: live, joinedAt: 900_000, lastSeen: 1_000_000 });
+    });
+
+    const result = await t.mutation(api.matchmaking.joinQueue, { playerId: crypto.randomUUID() });
+
+    expect(result).toEqual({ status: 'matched' });
+    const { matches, queue } = await t.run(async (ctx) => ({
+      matches: await ctx.db.query('matches').collect(),
+      queue: await ctx.db.query('queue').collect(),
+    }));
+    expect(matches[0].hostId).toBe(live);
+    expect(queue).toHaveLength(0);
+  });
+
+  it('a quick match nobody connected within a minute stops counting as active', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const t = convexTest(schema, modules);
+    const a = crypto.randomUUID();
+    const b = crypto.randomUUID();
+    await t.mutation(api.matchmaking.joinQueue, { playerId: a });
+    await t.mutation(api.matchmaking.joinQueue, { playerId: b });
+
+    vi.setSystemTime(1_000_000 + 60_000);
+    expect(await t.query(api.matchmaking.myMatch, { playerId: b })).not.toBeNull();
+
+    vi.setSystemTime(1_000_000 + 60_001);
+    expect(await t.query(api.matchmaking.myMatch, { playerId: b })).toBeNull();
+    expect(await t.mutation(api.matchmaking.joinQueue, { playerId: b })).toEqual({ status: 'queued' });
   });
 });

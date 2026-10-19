@@ -5,8 +5,12 @@ import { requirePlayerId, toMatchView, type MatchView } from './lib/access';
 
 /** A queue entry with no heartbeat for this long is treated as a closed tab and never paired. */
 export const QUEUE_STALE_MS = 30_000;
-// Bounds the pairing scan; stale rows beyond this wait for the sweep (disconnect-and-cleanup) instead of slowing joins.
+/** A quick match nobody has connected within this long is dead; its players may search again. */
+export const CONNECT_TIMEOUT_MS = 60_000;
+// The pairing scan reads the queue head in pages and deletes stale entries it meets, so abandoned tabs cannot pile up
+// at the head and block pairing for everyone. Bounded per call: at most PAIRING_PAGES * PAIRING_SCAN rows.
 const PAIRING_SCAN = 20;
+const PAIRING_PAGES = 5;
 
 const ACTIVE: Doc<'matches'>['status'][] = ['waiting', 'connecting', 'playing'];
 
@@ -30,8 +34,14 @@ export const joinQueue = mutation({
       return { status: 'queued' };
     }
 
-    const oldest = await ctx.db.query('queue').withIndex('by_joined').take(PAIRING_SCAN);
-    const partner = oldest.find((e) => e.playerId !== playerId && now - e.lastSeen <= QUEUE_STALE_MS);
+    let partner: Doc<'queue'> | undefined;
+    for (let page = 0; page < PAIRING_PAGES && !partner; page++) {
+      const head = await ctx.db.query('queue').withIndex('by_joined').take(PAIRING_SCAN);
+      const stale = head.filter((e) => now - e.lastSeen > QUEUE_STALE_MS);
+      partner = head.find((e) => e.playerId !== playerId && now - e.lastSeen <= QUEUE_STALE_MS);
+      for (const e of stale) await ctx.db.delete(e._id);
+      if (stale.length === 0) break;
+    }
     if (!partner) {
       await ctx.db.insert('queue', { playerId, joinedAt: now, lastSeen: now });
       return { status: 'queued' };
@@ -65,7 +75,10 @@ export async function activeMatchFor(ctx: Pick<QueryCtx, 'db'>, playerId: string
     .query('matches')
     .withIndex('by_guest', (q) => q.eq('guestId', playerId))
     .collect();
-  return [...asHost, ...asGuest].find((m) => ACTIVE.includes(m.status)) ?? null;
+  const now = Date.now();
+  const live = (m: Doc<'matches'>) =>
+    ACTIVE.includes(m.status) && !(m.status === 'connecting' && now - m.createdAt > CONNECT_TIMEOUT_MS);
+  return [...asHost, ...asGuest].find(live) ?? null;
 }
 
 export const leaveQueue = mutation({
