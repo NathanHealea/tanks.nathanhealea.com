@@ -2,9 +2,9 @@
 type: task
 epic: pvp-multiplayer
 slug: pvp-production-launch
-status: planned      # planned | in-progress | changes-requested | staged | released
+status: in-progress
 branch: task/pvp-production-launch
-worktree_path:       # set by `wi start`
+worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/task-pvp-production-launch
 created: 2026-10-19
 approved: 2026-10-19
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
@@ -78,3 +78,4 @@ pvp-deploy-docs added `scripts/deploy.mjs` (`npm run deploy`), which deploys Con
 
 - 2026-10-19 — Planned, split from pvp-deploy-docs steps 5 and 6 by the user's decision to release that item's code first.
 - 2026-10-19 — Plan approved.
+- 2026-10-19 — Started on branch task/pvp-production-launch from origin/pvp-tank.
