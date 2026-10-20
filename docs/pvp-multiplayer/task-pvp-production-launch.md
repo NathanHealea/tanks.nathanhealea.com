@@ -6,7 +6,7 @@ status: planned      # planned | in-progress | changes-requested | staged | rele
 branch: task/pvp-production-launch
 worktree_path:       # set by `wi start`
 created: 2026-10-19
-approved:            # set by `wi approve`
+approved: 2026-10-19
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
 version:             # set by `wi stage`
 review_approved:     # set by `wi accept`
@@ -77,3 +77,4 @@ pvp-deploy-docs added `scripts/deploy.mjs` (`npm run deploy`), which deploys Con
 ## Progress log
 
 - 2026-10-19 — Planned, split from pvp-deploy-docs steps 5 and 6 by the user's decision to release that item's code first.
+- 2026-10-19 — Plan approved.
