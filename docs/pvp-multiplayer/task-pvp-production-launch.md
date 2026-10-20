@@ -60,9 +60,9 @@ pvp-deploy-docs added `scripts/deploy.mjs` (`npm run deploy`), which deploys Con
 
 ## Implementation plan
 
-1. [ ] Owner: create the production deploy key and `.env`, set the production TURN key in the Convex dashboard, set the Cloudflare billing notification — touches nothing in the repo — tests none
-2. [ ] Run `npm run deploy` once with a bad production key, then for real — touches nothing in the repo — tests none (AC1, AC2)
-3. [ ] Run the production smoke test and record the results; then revoke the dev TURN key — touches this document — tests none (AC3, AC4)
+1. [x] Owner: create the production deploy key and `.env`, set the production TURN key in the Convex dashboard, set the Cloudflare billing notification — touches nothing in the repo — tests none
+2. [x] Run `npm run deploy` once with a bad production key, then for real — touches nothing in the repo — tests none (AC1, AC2)
+3. [x] Run the production smoke test and record the results; then revoke the dev TURN key — touches this document — tests none (AC3, AC4)
 
 **Must not change:** the code; `wrangler.json`, the custom domain, the campaign's offline install.
 
@@ -79,3 +79,8 @@ pvp-deploy-docs added `scripts/deploy.mjs` (`npm run deploy`), which deploys Con
 - 2026-10-19 — Planned, split from pvp-deploy-docs steps 5 and 6 by the user's decision to release that item's code first.
 - 2026-10-19 — Plan approved.
 - 2026-10-19 — Started on branch task/pvp-production-launch from origin/pvp-tank.
+- 2026-10-19 — 2026-10-19: the owner created .env.prod (git-ignored) with CLOUDFLARE_API_TOKEN and a prod: CONVEX_PROD_DEPLOY_KEY; the deploy will run as node --env-file=.env.prod scripts/deploy.mjs. Production Convex env vars listed with the prod key: none yet, so the TURN key is not set. AC2 passed: with an invalid prod key the deploy stopped at convex ('the site was not published'); wrangler did not run.
+- 2026-10-19 — 2026-10-20: production Convex env had the deploy secrets (CLOUDFLARE_API_TOKEN, CONVEX_PROD_DEPLOY_KEY) by mistake; the owner removed them, added CLOUDFLARE_TURN_KEY_ID and CLOUDFLARE_TURN_KEY_API_TOKEN, and rotated both secrets. Production env now lists exactly the two TURN names. First real npm run deploy from pvp-tank c5f4315: Convex functions and indexes deployed to brilliant-akita-76; wrangler failed 'Invalid access token [code: 9109]', so the site was not published (old campaign-only site still live). Waiting for a valid CLOUDFLARE_API_TOKEN in .env.
+- 2026-10-19 — 2026-10-20: AC1 passed. With a new Cloudflare API token, npm run deploy from pvp-tank c5f4315 exited 0: Convex deployed to brilliant-akita-76, wrangler published version 9b95f9e7-15fc-4485-bc64-162079e0a619 to tanks.nathanhealea.com (custom domain). Checks: bundle contains the prod Convex URL and not the dev one; neither deploy secret is in dist/; the live site returns 200 and serves the new bundle (index-BUdXo1mu.js). Billing notification and dev TURN key revocation not confirmed by the owner yet.
+- 2026-10-19 — 2026-10-20: the owner reports the dev TURN key (whose token appeared in a session transcript) has been rotated.
+- 2026-10-19 — 2026-10-20: the owner skipped the production smoke test (AC4: quick and private matches on two networks, leave forfeit, relay-only candidates, offline campaign, Convex error logs) and did not confirm the Cloudflare billing notification. Online play is live but has not been exercised end to end in production.
