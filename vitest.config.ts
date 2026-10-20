@@ -6,6 +6,8 @@ export default defineConfig({
     projects: [
       { test: { name: 'game', include: ['src/**/*.test.ts'], environment: 'node' } },
       { test: { name: 'convex', include: ['convex/**/*.test.ts'], environment: 'edge-runtime' } },
+      // Repository and deploy checks run in Node and sit outside the app's TypeScript project.
+      { test: { name: 'repo', include: ['scripts/**/*.test.mjs'], environment: 'node' } },
     ],
   },
 });

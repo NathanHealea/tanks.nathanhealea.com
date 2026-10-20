@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit && tsc -p convex",
     "test": "vitest run --update none",
     "test:watch": "vitest",
-    "deploy": "npm run build && wrangler deploy"
+    "deploy": "node --env-file=.env scripts/deploy.mjs"
   },
   "dependencies": {
     "@react-three/fiber": "^9.8.2",
