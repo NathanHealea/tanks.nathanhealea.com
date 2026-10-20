@@ -39,4 +39,11 @@ describe('redacting setup messages', () => {
     expect(out.split('\r\n').filter((l) => l.includes('raddr 0.0.0.0 rport 0'))).toHaveLength(2);
     expect(out.replaceAll('raddr 0.0.0.0 rport 0', 'raddr 203.0.113.7 rport 54321')).toBe(sdp);
   });
+
+  it('leaves a non-candidate line that mentions raddr unchanged', () => {
+    const sdp = ['v=0', 's=raddr 192.0.2.5 rport 7', 'a=x-note:raddr 192.0.2.5 rport 7', `a=${RELAY}`, ''].join('\r\n');
+    const out = redactSdp(sdp).split('\r\n');
+    expect(out.slice(0, 3)).toEqual(['v=0', 's=raddr 192.0.2.5 rport 7', 'a=x-note:raddr 192.0.2.5 rport 7']);
+    expect(out[3]).not.toContain('203.0.113.7');
+  });
 });

@@ -19,6 +19,23 @@ describe('connectPeer', () => {
     vi.useRealTimers();
   });
 
+  it('redacted setup messages keep their description type and candidate fields', async () => {
+    const rtc = createFakeRtcPair();
+    const bus = createSignalBus();
+
+    await Promise.all([
+      connectPeer({ role: 'host', signals: bus.host, iceServers: ICE_SERVERS, createPeerConnection: rtc.createHost }),
+      connectPeer({ role: 'guest', signals: bus.guest, iceServers: ICE_SERVERS, createPeerConnection: rtc.createGuest }),
+    ]);
+
+    const payloads = (role: 'host' | 'guest', kind: string) =>
+      bus.sentBy(role).filter((signal) => signal.kind === kind).map((signal) => JSON.parse(signal.payload));
+    expect(payloads('host', 'offer')).toEqual([expect.objectContaining({ type: 'offer', sdp: expect.stringContaining('a=candidate:') })]);
+    expect(payloads('guest', 'answer')).toEqual([expect.objectContaining({ type: 'answer', sdp: expect.stringContaining('a=candidate:') })]);
+    expect(rtc.guest.addedCandidates).toEqual([expect.objectContaining({ sdpMid: '0', sdpMLineIndex: 0 })]);
+    expect(rtc.host.addedCandidates).toEqual([expect.objectContaining({ sdpMid: '0', sdpMLineIndex: 0 })]);
+  });
+
   it('host and guest negotiate', async () => {
     const rtc = createFakeRtcPair();
     const bus = createSignalBus();

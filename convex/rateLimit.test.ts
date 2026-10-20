@@ -4,6 +4,7 @@ import { ConvexError } from 'convex/values';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { api, internal } from './_generated/api';
 import { MATCHMAKING_CALLS_PER_MINUTE } from './lib/rateLimit';
+import { hourOf, MATCHES_PER_HOUR } from './lib/relayBudget';
 import schema from './schema';
 
 const modules = import.meta.glob('./**/*.*s');
@@ -162,6 +163,38 @@ describe('matchmaking calls are rate limited', () => {
     await expectConvexErrorAsync(t.mutation(api.privateMatch.joinPrivate, { playerId: 'x', code: 'ABCDEF' }), 'Invalid player id');
 
     expect(await counters(t)).toEqual([]);
+  });
+
+  it('at the limit, a refused call still hears its own reason', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(MINUTE_START + 1_000);
+    const t = convexTest(schema, modules);
+    await seedCalls(t, M, 120);
+
+    await expectConvexErrorAsync(t.mutation(api.matchmaking.joinQueue, { playerId: 'x' }), 'Invalid player id');
+    await expectConvexErrorAsync(t.action(api.privateMatch.createPrivate, { playerId: 'x' }), 'Invalid player id');
+    await expectConvexErrorAsync(
+      t.mutation(api.privateMatch.joinPrivate, { playerId: crypto.randomUUID(), code: 'ABCDEF' }),
+      'CODE_NOT_FOUND',
+    );
+
+    expect(await counters(t)).toEqual([{ minute: M, calls: 120 }]);
+  });
+
+  it('a joiner waiting for a relay slot stays in line at the limit', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(MINUTE_START + 1_000);
+    const t = convexTest(schema, modules);
+    const { code } = await t.action(api.privateMatch.createPrivate, { playerId: crypto.randomUUID() });
+    await t.run(async (ctx) => {
+      await ctx.db.insert('relayBudget', { hour: hourOf(Date.now()), matches: MATCHES_PER_HOUR });
+      const row = await ctx.db.query('rateLimit').unique();
+      await ctx.db.patch(row!._id, { calls: 120 });
+    });
+
+    await expectConvexErrorAsync(t.mutation(api.privateMatch.joinPrivate, { playerId: crypto.randomUUID(), code }), 'BUSY');
+
+    expect(await counters(t)).toEqual([{ minute: M, calls: 120 }]);
   });
 
   it('the next minute accepts calls again', async () => {
