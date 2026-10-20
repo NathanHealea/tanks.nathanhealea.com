@@ -2,13 +2,13 @@
 type: task
 epic: pvp-multiplayer
 slug: pvp-production-launch
-status: in-progress
+status: staged
 branch: task/pvp-production-launch
 worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/task-pvp-production-launch
 created: 2026-10-19
 approved: 2026-10-19
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
-version:             # set by `wi stage`
+version: 0.11.2
 review_approved:     # set by `wi accept`
 pr:                  # set by `wi pr`
 tag:                 # set by `wi release`; the tag sits on the branch's last commit
@@ -84,3 +84,4 @@ pvp-deploy-docs added `scripts/deploy.mjs` (`npm run deploy`), which deploys Con
 - 2026-10-19 — 2026-10-20: AC1 passed. With a new Cloudflare API token, npm run deploy from pvp-tank c5f4315 exited 0: Convex deployed to brilliant-akita-76, wrangler published version 9b95f9e7-15fc-4485-bc64-162079e0a619 to tanks.nathanhealea.com (custom domain). Checks: bundle contains the prod Convex URL and not the dev one; neither deploy secret is in dist/; the live site returns 200 and serves the new bundle (index-BUdXo1mu.js). Billing notification and dev TURN key revocation not confirmed by the owner yet.
 - 2026-10-19 — 2026-10-20: the owner reports the dev TURN key (whose token appeared in a session transcript) has been rotated.
 - 2026-10-19 — 2026-10-20: the owner skipped the production smoke test (AC4: quick and private matches on two networks, leave forfeit, relay-only candidates, offline campaign, Convex error logs) and did not confirm the Cloudflare billing notification. Online play is live but has not been exercised end to end in production.
+- 2026-10-19 — Staged: verification passed; version 0.11.1 → 0.11.2; no changelog file.
