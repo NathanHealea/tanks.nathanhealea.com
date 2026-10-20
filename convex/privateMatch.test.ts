@@ -19,6 +19,18 @@ async function expectConvexErrorAsync(promise: Promise<unknown>, message: string
   expect((caught as ConvexError<string>).data).toBe(message);
 }
 
+/** Fills the n-th getRandomValues call with draws[n]; any later call draws SSSSSS. */
+function stubRandomValues(draws: number[][]) {
+  let call = 0;
+  return vi.spyOn(crypto, 'getRandomValues').mockImplementation(<T extends ArrayBufferView | null>(array: T): T => {
+    const values = draws[call] ?? [0x7fffffff, 0x7fffffff, 0x7fffffff, 0x7fffffff, 0x7fffffff, 0x7fffffff];
+    call++;
+    const target = array as unknown as Uint32Array;
+    for (let i = 0; i < target.length; i++) target[i] = values[i % values.length];
+    return array;
+  });
+}
+
 describe('privateMatch', () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -31,7 +43,7 @@ describe('privateMatch', () => {
     const t = convexTest(schema, modules);
     const a = crypto.randomUUID();
 
-    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: a });
+    const { code } = await t.action(api.privateMatch.createPrivate, { playerId: a });
 
     expect(code).toHaveLength(6);
     for (const ch of code) expect(CODE_ALPHABET).toContain(ch);
@@ -66,14 +78,11 @@ describe('privateMatch', () => {
         status: 'waiting', seed: 1, round: 0, hostScore: 0, guestScore: 0, createdAt: 1_000_000, hostSeen: 1_000_000,
       }),
     );
-    // The first seven draws are zero so the first code collides whether the seed is drawn before or after it.
-    const realRandom = Math.random;
-    let calls = 0;
-    vi.spyOn(Math, 'random').mockImplementation(() => (calls++ < 7 ? 0 : realRandom()));
+    const player = crypto.randomUUID();
+    stubRandomValues([[0, 0, 0, 0, 0, 0]]);
 
-    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: crypto.randomUUID() });
+    const { code } = await t.action(api.privateMatch.createPrivate, { playerId: player });
 
-    expect(calls).toBeGreaterThan(7);
     expect(code).not.toBe(taken);
     expect(code).toHaveLength(6);
     const holders = await t.run((ctx) =>
@@ -86,8 +95,8 @@ describe('privateMatch', () => {
     const t = convexTest(schema, modules);
     const a = crypto.randomUUID();
 
-    const first = await t.mutation(api.privateMatch.createPrivate, { playerId: a });
-    const second = await t.mutation(api.privateMatch.createPrivate, { playerId: a });
+    const first = await t.action(api.privateMatch.createPrivate, { playerId: a });
+    const second = await t.action(api.privateMatch.createPrivate, { playerId: a });
 
     const matches = await t.run((ctx) => ctx.db.query('matches').collect());
     const firstMatch = matches.find((m) => m.code === first.code);
@@ -103,7 +112,7 @@ describe('privateMatch', () => {
     const t = convexTest(schema, modules);
     const a = crypto.randomUUID();
     const b = crypto.randomUUID();
-    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: a });
+    const { code } = await t.action(api.privateMatch.createPrivate, { playerId: a });
     const typed = ` ${code.slice(0, 3).toLowerCase()}-${code.slice(3).toLowerCase()} `.replace('-', ' - ');
 
     vi.setSystemTime(1_005_000);
@@ -121,7 +130,7 @@ describe('privateMatch', () => {
     const b = crypto.randomUUID();
     const c = crypto.randomUUID();
     const busy = crypto.randomUUID();
-    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: a });
+    const { code } = await t.action(api.privateMatch.createPrivate, { playerId: a });
     const snapshot = () => t.run((ctx) => ctx.db.query('matches').withIndex('by_code', (q) => q.eq('code', code)).unique());
 
     const fresh = await snapshot();
@@ -148,7 +157,7 @@ describe('privateMatch', () => {
     expect(await snapshot()).toEqual(joined);
 
     const host = crypto.randomUUID();
-    const late = await t.mutation(api.privateMatch.createPrivate, { playerId: host });
+    const late = await t.action(api.privateMatch.createPrivate, { playerId: host });
     const lateSnapshot = () =>
       t.run((ctx) => ctx.db.query('matches').withIndex('by_code', (q) => q.eq('code', late.code)).unique());
     const lateFresh = await lateSnapshot();
@@ -162,7 +171,7 @@ describe('privateMatch', () => {
     const a = crypto.randomUUID();
     const b = crypto.randomUUID();
     const outsider = crypto.randomUUID();
-    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: a });
+    const { code } = await t.action(api.privateMatch.createPrivate, { playerId: a });
     const before = await t.run((ctx) => ctx.db.query('matches').withIndex('by_code', (q) => q.eq('code', code)).unique());
     if (!before) throw new Error('created match missing');
 
@@ -182,7 +191,7 @@ describe('privateMatch', () => {
     const t = convexTest(schema, modules);
     const a = crypto.randomUUID();
     const b = crypto.randomUUID();
-    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: a });
+    const { code } = await t.action(api.privateMatch.createPrivate, { playerId: a });
     await t.mutation(api.privateMatch.joinPrivate, { playerId: b, code });
 
     const hostView = await t.query(api.matchmaking.myMatch, { playerId: a });
@@ -201,11 +210,11 @@ describe('privateMatch', () => {
     vi.setSystemTime(1_000_000);
     const t = convexTest(schema, modules);
     const a = crypto.randomUUID();
-    const { code: first } = await t.mutation(api.privateMatch.createPrivate, { playerId: a });
+    const { code: first } = await t.action(api.privateMatch.createPrivate, { playerId: a });
 
     vi.setSystemTime(1_000_000 + 600_001);
     expect(await t.query(api.matchmaking.myMatch, { playerId: a })).toBeNull();
-    const { code: second } = await t.mutation(api.privateMatch.createPrivate, { playerId: a });
+    const { code: second } = await t.action(api.privateMatch.createPrivate, { playerId: a });
     expect(second).not.toBe(first);
   });
 
@@ -214,7 +223,7 @@ describe('privateMatch', () => {
     const a = crypto.randomUUID();
     await t.mutation(api.matchmaking.joinQueue, { playerId: a });
     await t.mutation(api.matchmaking.joinQueue, { playerId: crypto.randomUUID() });
-    await expectConvexErrorAsync(t.mutation(api.privateMatch.createPrivate, { playerId: a }), 'ALREADY_IN_MATCH');
+    await expectConvexErrorAsync(t.action(api.privateMatch.createPrivate, { playerId: a }), 'ALREADY_IN_MATCH');
   });
 
   it('creating or joining a private match leaves the quick-match queue', async () => {
@@ -225,7 +234,7 @@ describe('privateMatch', () => {
       await ctx.db.insert('queue', { playerId: host, joinedAt: Date.now(), lastSeen: Date.now() });
       await ctx.db.insert('queue', { playerId: guest, joinedAt: Date.now(), lastSeen: Date.now() });
     });
-    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: host });
+    const { code } = await t.action(api.privateMatch.createPrivate, { playerId: host });
     let queue = await t.run((ctx) => ctx.db.query('queue').collect());
     expect(queue.map((row) => row.playerId)).toEqual([guest]);
 
@@ -238,7 +247,7 @@ describe('privateMatch', () => {
     const t = convexTest(schema, modules);
     const host = crypto.randomUUID();
     const guest = crypto.randomUUID();
-    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: host });
+    const { code } = await t.action(api.privateMatch.createPrivate, { playerId: host });
     const { matchId } = await t.mutation(api.privateMatch.joinPrivate, { playerId: guest, code });
 
     await expectConvexErrorAsync(
@@ -253,10 +262,10 @@ describe('privateMatch', () => {
   it('every private match function rejects a malformed player id', async () => {
     const t = convexTest(schema, modules);
     const host = crypto.randomUUID();
-    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: host });
+    const { code } = await t.action(api.privateMatch.createPrivate, { playerId: host });
     const match = await t.run((ctx) => ctx.db.query('matches').first());
 
-    await expectConvexErrorAsync(t.mutation(api.privateMatch.createPrivate, { playerId: 'x' }), 'Invalid player id');
+    await expectConvexErrorAsync(t.action(api.privateMatch.createPrivate, { playerId: 'x' }), 'Invalid player id');
     await expectConvexErrorAsync(t.mutation(api.privateMatch.joinPrivate, { playerId: 'x', code }), 'Invalid player id');
     await expectConvexErrorAsync(
       t.mutation(api.privateMatch.cancelPrivate, { playerId: 'x', matchId: match!._id }),
@@ -272,7 +281,7 @@ describe('privateMatch', () => {
     const t = convexTest(schema, modules);
     const host = crypto.randomUUID();
     const guest = crypto.randomUUID();
-    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: host });
+    const { code } = await t.action(api.privateMatch.createPrivate, { playerId: host });
 
     vi.setSystemTime(1_000_000 + 5 * 60_000);
     await t.mutation(api.privateMatch.joinPrivate, { playerId: guest, code });
@@ -287,7 +296,7 @@ describe('privateMatch', () => {
   it('a host with a code out cannot also quick match', async () => {
     const t = convexTest(schema, modules);
     const host = crypto.randomUUID();
-    await t.mutation(api.privateMatch.createPrivate, { playerId: host });
+    await t.action(api.privateMatch.createPrivate, { playerId: host });
     await expectConvexErrorAsync(t.mutation(api.matchmaking.joinQueue, { playerId: host }), 'ALREADY_IN_MATCH');
     expect(await t.run((ctx) => ctx.db.query('queue').collect())).toHaveLength(0);
   });
@@ -297,7 +306,7 @@ describe('privateMatch', () => {
     vi.setSystemTime(1_000_000);
     const t = convexTest(schema, modules);
     const host = crypto.randomUUID();
-    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: host });
+    const { code } = await t.action(api.privateMatch.createPrivate, { playerId: host });
     const match = (await t.run((ctx) => ctx.db.query('matches').first()))!;
 
     vi.setSystemTime(1_000_000 + 9 * 60_000);
@@ -313,7 +322,7 @@ describe('privateMatch', () => {
     const t = convexTest(schema, modules);
     const host = crypto.randomUUID();
     const guest = crypto.randomUUID();
-    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: host });
+    const { code } = await t.action(api.privateMatch.createPrivate, { playerId: host });
     const match = (await t.run((ctx) => ctx.db.query('matches').first()))!;
 
     await expectConvexErrorAsync(
@@ -337,7 +346,7 @@ describe('privateMatch', () => {
     const t = convexTest(schema, modules);
     const host = crypto.randomUUID();
     const guest = crypto.randomUUID();
-    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: host });
+    const { code } = await t.action(api.privateMatch.createPrivate, { playerId: host });
     vi.setSystemTime(1_000_000 + 590_000);
     await t.mutation(api.privateMatch.joinPrivate, { playerId: guest, code });
     vi.setSystemTime(1_000_000 + 605_000);
@@ -350,7 +359,7 @@ describe('privateMatch', () => {
     vi.setSystemTime(1_000_000);
     const t = convexTest(schema, modules);
     const host = crypto.randomUUID();
-    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: host });
+    const { code } = await t.action(api.privateMatch.createPrivate, { playerId: host });
     vi.setSystemTime(1_000_000 + 600_000);
     expect(await t.query(api.matchmaking.myMatch, { playerId: host })).not.toBeNull();
     await expect(t.mutation(api.privateMatch.joinPrivate, { playerId: crypto.randomUUID(), code })).resolves.toBeDefined();
@@ -369,10 +378,9 @@ describe('privateMatch', () => {
       t.mutation(api.privateMatch.joinPrivate, { playerId: crypto.randomUUID(), code: taken }),
       'MATCH_FULL',
     );
-    const real = Math.random;
-    let draws = 0;
-    vi.spyOn(Math, 'random').mockImplementation(() => (draws++ < 7 ? 0 : real()));
-    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: crypto.randomUUID() });
+    const player = crypto.randomUUID();
+    stubRandomValues([[0, 0, 0, 0, 0, 0]]);
+    const { code } = await t.action(api.privateMatch.createPrivate, { playerId: player });
     expect(code).not.toBe(taken);
   });
 
@@ -380,16 +388,16 @@ describe('privateMatch', () => {
     const t = convexTest(schema, modules);
     const host = crypto.randomUUID();
     const guest = crypto.randomUUID();
-    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: host });
+    const { code } = await t.action(api.privateMatch.createPrivate, { playerId: host });
     const { matchId } = await t.mutation(api.privateMatch.joinPrivate, { playerId: guest, code });
-    await expectConvexErrorAsync(t.mutation(api.privateMatch.createPrivate, { playerId: host }), 'ALREADY_IN_MATCH');
+    await expectConvexErrorAsync(t.action(api.privateMatch.createPrivate, { playerId: host }), 'ALREADY_IN_MATCH');
     expect(await t.run((ctx) => ctx.db.get(matchId))).toMatchObject({ status: 'connecting', guestId: guest });
   });
 
   it('the host entering their own full code hears OWN_CODE', async () => {
     const t = convexTest(schema, modules);
     const host = crypto.randomUUID();
-    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: host });
+    const { code } = await t.action(api.privateMatch.createPrivate, { playerId: host });
     await t.mutation(api.privateMatch.joinPrivate, { playerId: crypto.randomUUID(), code });
     await expectConvexErrorAsync(t.mutation(api.privateMatch.joinPrivate, { playerId: host, code }), 'OWN_CODE');
   });
@@ -402,9 +410,11 @@ describe('privateMatch', () => {
         status: 'waiting', seed: 1, round: 0, hostScore: 0, guestScore: 0, createdAt: 1, hostSeen: 1,
       }),
     );
-    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const player = crypto.randomUUID();
+    const zeros = [0, 0, 0, 0, 0, 0];
+    stubRandomValues([zeros, zeros, zeros, zeros, zeros, zeros]);
     await expectConvexErrorAsync(
-      t.mutation(api.privateMatch.createPrivate, { playerId: crypto.randomUUID() }),
+      t.action(api.privateMatch.createPrivate, { playerId: player }),
       'Could not find a free match code; try again',
     );
     expect(await t.run((ctx) => ctx.db.query('matches').collect())).toHaveLength(1);
@@ -413,9 +423,47 @@ describe('privateMatch', () => {
   it('the seed is an unsigned 32-bit integer even at the top of the random range', async () => {
     const t = convexTest(schema, modules);
     vi.spyOn(Math, 'random').mockReturnValue(0.9999999999);
-    await t.mutation(api.privateMatch.createPrivate, { playerId: crypto.randomUUID() });
+    await t.action(api.privateMatch.createPrivate, { playerId: crypto.randomUUID() });
     const match = (await t.run((ctx) => ctx.db.query('matches').first()))!;
     expect(match.seed).toBe(Math.floor(0.9999999999 * 2 ** 32));
     expect(match.seed).toBeLessThan(2 ** 32);
+  });
+
+  it('codes come from an unpredictable source', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const t = convexTest(schema, modules);
+    const host = crypto.randomUUID();
+    const second = crypto.randomUUID();
+    const otherHost = crypto.randomUUID();
+    // Each value maps to CODE_ALPHABET[floor(value / 2**32 * 31)]: 0 is the first letter, 0xffffffff the last.
+    const acv9sm = [0x00000000, 0x12345678, 0x9abcdef0, 0xffffffff, 0x80000000, 0x55555555];
+    const bdhnw6 = [0x0a000000, 0x20000000, 0x40000000, 0x60000000, 0xa0000000, 0xe0000000];
+    const spy = stubRandomValues([acv9sm]);
+
+    const { code } = await t.action(api.privateMatch.createPrivate, { playerId: host });
+
+    expect(code).toBe('ACV9SM');
+    expect(await t.run((ctx) => ctx.db.query('matches').withIndex('by_code', (q) => q.eq('code', code)).unique())).toMatchObject({
+      kind: 'private', status: 'waiting', hostId: host,
+    });
+
+    spy.mockRestore();
+    await t.run((ctx) =>
+      ctx.db.insert('matches', {
+        kind: 'private', code: 'BDHNW6', expiresAt: 1_000_000 + TEN_MINUTES, hostId: otherHost,
+        status: 'waiting', seed: 1, round: 0, hostScore: 0, guestScore: 0, createdAt: 1_000_000, hostSeen: 1_000_000,
+      }),
+    );
+    stubRandomValues([bdhnw6, acv9sm.map((v, i) => (i === 0 ? 0x0a000000 : v))]);
+
+    const { code: redrawn } = await t.action(api.privateMatch.createPrivate, { playerId: second });
+
+    expect(redrawn).toBe('BCV9SM');
+    const holders = await t.run((ctx) => ctx.db.query('matches').withIndex('by_code', (q) => q.eq('code', 'BDHNW6')).collect());
+    expect(holders.map((m) => m.hostId)).toEqual([otherHost]);
+    expect(await t.run((ctx) => ctx.db.query('matches').withIndex('by_code', (q) => q.eq('code', 'BCV9SM')).unique())).toMatchObject({
+      status: 'waiting', hostId: second,
+    });
   });
 });

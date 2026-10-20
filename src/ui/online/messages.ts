@@ -9,6 +9,7 @@ const JOIN_ERRORS: Record<JoinError, string> = {
   OWN_CODE: 'This is your own match code. Send the link to a friend.',
   ALREADY_IN_MATCH: "You're already in a match.",
   BUSY: "Lots of players right now, so you're in line. We'll keep trying.",
+  RATE_LIMITED: 'Too many players are starting games right now. Try again in a minute.',
   UNKNOWN: 'Something went wrong joining that match. Try again.',
 };
 

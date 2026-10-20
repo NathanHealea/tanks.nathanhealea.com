@@ -1,8 +1,10 @@
 import { ConvexError, v } from 'convex/values';
 import type { Doc } from './_generated/dataModel';
-import { mutation, type MutationCtx } from './_generated/server';
+import { internal } from './_generated/api';
+import { action, internalMutation, mutation, type MutationCtx } from './_generated/server';
 import { loadMatchAs, requirePlayerId } from './lib/access';
-import { generateCode, normalizeCode } from './lib/codes';
+import { CODE_LENGTH, generateCode, normalizeCode } from './lib/codes';
+import { countMatchmakingCall } from './lib/rateLimit';
 import { hasMatchSlot } from './lib/relayBudget';
 import { activeMatchFor, queueEntry } from './matchmaking';
 
@@ -10,11 +12,29 @@ import { activeMatchFor, queueEntry } from './matchmaking';
 export const CODE_TTL_MS = 10 * 60_000;
 const CODE_ATTEMPTS = 5;
 
-export const createPrivate = mutation({
+// Each candidate is one getRandomValues draw. Codes come from an action because Convex seeds Math.random in mutations
+// and does not document that seed as unpredictable; a guessable code would let a stranger into a private match (R7).
+function drawCode(): string {
+  const values = crypto.getRandomValues(new Uint32Array(CODE_LENGTH));
+  let i = 0;
+  return generateCode(() => values[i++] / 2 ** 32);
+}
+
+/** Makes a private match with a fresh code, replacing the caller's own waiting code if they had one. */
+export const createPrivate = action({
   args: { playerId: v.string() },
   handler: async (ctx, { playerId }): Promise<{ code: string }> => {
+    const candidates = Array.from({ length: CODE_ATTEMPTS }, drawCode);
+    return await ctx.runMutation(internal.privateMatch.openPrivate, { playerId, candidates });
+  },
+});
+
+export const openPrivate = internalMutation({
+  args: { playerId: v.string(), candidates: v.array(v.string()) },
+  handler: async (ctx, { playerId, candidates }): Promise<{ code: string }> => {
     requirePlayerId(playerId);
     const now = Date.now();
+    await countMatchmakingCall(ctx, now);
     const current = await activeMatchFor(ctx, playerId);
     if (current && !(current.kind === 'private' && current.status === 'waiting' && current.hostId === playerId)) {
       throw new ConvexError('ALREADY_IN_MATCH');
@@ -22,7 +42,7 @@ export const createPrivate = mutation({
     if (current) await ctx.db.patch(current._id, { status: 'abandoned' });
     await leaveQueue(ctx, playerId);
 
-    const code = await uniqueCode(ctx);
+    const code = await firstFreeCode(ctx, candidates);
     await ctx.db.insert('matches', {
       kind: 'private',
       code,
@@ -77,6 +97,7 @@ export const joinPrivate = mutation({
     if (match.expiresAt === undefined || now > match.expiresAt) throw new ConvexError('CODE_EXPIRED');
     if (await activeMatchFor(ctx, playerId)) throw new ConvexError('ALREADY_IN_MATCH');
     if (!(await hasMatchSlot(ctx, now))) throw new ConvexError('BUSY');
+    await countMatchmakingCall(ctx, now);
 
     await leaveQueue(ctx, playerId);
     await ctx.db.patch(match._id, { guestId: playerId, guestSeen: now, status: 'connecting' });
@@ -95,9 +116,8 @@ async function matchWithCode(ctx: MutationCtx, code: string): Promise<Doc<'match
   return rows.find((m) => m.status === 'waiting' || m.status === 'connecting' || m.status === 'playing') ?? null;
 }
 
-async function uniqueCode(ctx: MutationCtx): Promise<string> {
-  for (let attempt = 0; attempt < CODE_ATTEMPTS; attempt++) {
-    const code = generateCode(Math.random);
+async function firstFreeCode(ctx: MutationCtx, candidates: string[]): Promise<string> {
+  for (const code of candidates) {
     if (!(await matchWithCode(ctx, code))) return code;
   }
   throw new ConvexError('Could not find a free match code; try again');

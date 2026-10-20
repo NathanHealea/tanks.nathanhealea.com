@@ -19,7 +19,7 @@ export function Card({ title, children }: { title: string; children: ReactNode }
   );
 }
 
-export const SEARCH_FAILED = "Couldn't start the search. Cancel and try again.";
+export const SEARCH_FAILED = "Couldn't start the search. Wait a minute and try again.";
 
 export function OnlineMenu(props: { onQuick(): void; onCreate(): void; onJoin(): void; onBack(): void }) {
   return (

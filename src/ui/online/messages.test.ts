@@ -75,4 +75,8 @@ describe('online messages', () => {
     expect(rematchErrorMessage(new ConvexError('BUSY'))).toBe('Lots of players right now. Try the rematch again in a few minutes.');
     expect(IN_LINE).toBe("Lots of players right now, so you're in line. Your match will start when a spot opens.");
   });
+
+  it('a rate-limited start tells players to wait a minute', () => {
+    expect(joinErrorMessage('RATE_LIMITED')).toBe('Too many players are starting games right now. Try again in a minute.');
+  });
 });

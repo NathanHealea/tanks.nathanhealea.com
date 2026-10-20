@@ -55,6 +55,12 @@ export default defineSchema({
     lastSeen: v.number(),
   }).index('by_match', ['matchId', 'role']),
 
+  // Matchmaking calls per minute, the sitewide limit on calls that create rows (pvp-deploy-docs R6).
+  rateLimit: defineTable({
+    minute: v.number(),
+    calls: v.number(),
+  }).index('by_minute', ['minute']),
+
   // Match starts per hour, the cap that keeps relay traffic in Cloudflare's free tier (turn-relay R7).
   relayBudget: defineTable({
     hour: v.number(),

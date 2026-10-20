@@ -1,6 +1,7 @@
 import { ConvexError, v } from 'convex/values';
 import type { Doc } from './_generated/dataModel';
 import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
+import { countMatchmakingCall } from './lib/rateLimit';
 import { hasMatchSlot } from './lib/relayBudget';
 import { requirePlayerId, toMatchView, type MatchView } from './lib/access';
 
@@ -27,6 +28,7 @@ export const joinQueue = mutation({
   handler: async (ctx, { playerId }): Promise<QueueResult> => {
     requirePlayerId(playerId);
     const now = Date.now();
+    await countMatchmakingCall(ctx, now);
     const active = await activeMatchFor(ctx, playerId);
     // A host holding a private code is waiting for a friend, not an opponent; quick match must not wait on that.
     if (active?.kind === 'private' && active.status === 'waiting') throw new ConvexError('ALREADY_IN_MATCH');

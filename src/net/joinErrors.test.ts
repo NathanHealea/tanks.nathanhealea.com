@@ -14,6 +14,10 @@ describe('joinErrorOf', () => {
     expect(joinErrorOf(new ConvexError('BUSY'))).toBe('BUSY');
   });
 
+  it('maps a ConvexError carrying RATE_LIMITED to RATE_LIMITED', () => {
+    expect(joinErrorOf(new ConvexError('RATE_LIMITED'))).toBe('RATE_LIMITED');
+  });
+
   it('maps an unrelated ConvexError to UNKNOWN', () => {
     expect(joinErrorOf(new ConvexError('Invalid player id'))).toBe('UNKNOWN');
   });

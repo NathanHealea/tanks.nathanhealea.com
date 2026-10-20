@@ -1,5 +1,6 @@
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
+import { minuteOf } from './lib/rateLimit';
 import { hourOf } from './lib/relayBudget';
 
 /** Rows each rule handles per run; anything left waits a minute for the next run (R7). */
@@ -31,6 +32,7 @@ export const sweep = internalMutation({
     await deleteOldMatches(ctx, now, 'finished');
     await deleteOldMatches(ctx, now, 'abandoned');
     await deleteOldBudget(ctx, now);
+    await deleteOldRateCounts(ctx, now);
     return null;
   },
 });
@@ -116,6 +118,14 @@ async function deleteOldBudget(ctx: MutationCtx, now: number) {
   const old = await ctx.db
     .query('relayBudget')
     .withIndex('by_hour', (q) => q.lt('hour', hourOf(now) - 2))
+    .take(SWEEP_BATCH);
+  for (const row of old) await ctx.db.delete(row._id);
+}
+
+async function deleteOldRateCounts(ctx: MutationCtx, now: number) {
+  const old = await ctx.db
+    .query('rateLimit')
+    .withIndex('by_minute', (q) => q.lt('minute', minuteOf(now) - 2))
     .take(SWEEP_BATCH);
   for (const row of old) await ctx.db.delete(row._id);
 }

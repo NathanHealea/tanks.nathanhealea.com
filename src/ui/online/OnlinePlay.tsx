@@ -17,7 +17,7 @@ import type { HudSnapshot } from '../../render/Scene';
 import { TouchControls } from '../TouchControls';
 import { initialScreen, outcomeAction, reduce, type OnlineAction, type OnlineEffect, type OnlineScreen } from './flow';
 import { Connecting, ConnectFailed, Countdown, Ended, LeaveConfirm, LinkLostBanner, MatchResult, PvpHud } from './MatchScreens';
-import { endedText, IN_LINE, linkLostText, rematchErrorMessage, roundResultText, scoreText } from './messages';
+import { endedText, IN_LINE, joinErrorMessage, linkLostText, rematchErrorMessage, roundResultText, scoreText } from './messages';
 import { JoinWithCode, OnlineMenu, PrivateWaiting, SEARCH_FAILED, Searching, Unavailable } from './OnlineScreens';
 
 const isTouch = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
@@ -386,7 +386,9 @@ export function OnlinePlay(props: Props) {
   }, [busyCode]);
 
   useEffect(() => {
-    if (priv.createError) showError(priv.createError === 'ALREADY_IN_MATCH' ? "You're already in a match." : 'Making a code failed. Try again.');
+    if (!priv.createError) return;
+    const known = priv.createError === 'ALREADY_IN_MATCH' || priv.createError === 'RATE_LIMITED';
+    showError(known ? joinErrorMessage(priv.createError) : 'Making a code failed. Try again.');
   }, [priv.createError, showError]);
 
   useEffect(() => {

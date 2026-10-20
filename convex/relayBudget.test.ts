@@ -130,7 +130,7 @@ describe('match starts are capped per hour', () => {
     const t = convexTest(schema, modules);
     const host = crypto.randomUUID();
     const guest = crypto.randomUUID();
-    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: host });
+    const { code } = await t.action(api.privateMatch.createPrivate, { playerId: host });
     await seedBudget(t, H, 20);
 
     await expectConvexErrorAsync(t.mutation(api.privateMatch.joinPrivate, { playerId: guest, code }), 'BUSY');
@@ -148,7 +148,7 @@ describe('match starts are capped per hour', () => {
     const t = convexTest(schema, modules);
     const host = crypto.randomUUID();
     const guest = crypto.randomUUID();
-    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: host });
+    const { code } = await t.action(api.privateMatch.createPrivate, { playerId: host });
     await seedBudget(t, H, 19);
 
     const { matchId } = await t.mutation(api.privateMatch.joinPrivate, { playerId: guest, code });

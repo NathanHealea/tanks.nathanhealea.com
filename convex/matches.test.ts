@@ -210,7 +210,7 @@ describe('matches', () => {
     const t = convexTest(schema, modules);
     const { matchId, hostId, guestId } = await seedFinishedMatch(t);
     await t.mutation(api.matches.requestRematch, { playerId: hostId, matchId });
-    await t.mutation(api.privateMatch.createPrivate, { playerId: hostId });
+    await t.action(api.privateMatch.createPrivate, { playerId: hostId });
     await expectConvexErrorAsync(t.mutation(api.matches.requestRematch, { playerId: guestId, matchId }), 'OPPONENT_LEFT');
     expect(await t.run((ctx) => ctx.db.query('matches').collect())).toHaveLength(2);
   });
@@ -220,7 +220,7 @@ describe('matches', () => {
     const { matchId, hostId, guestId } = await seedFinishedMatch(t);
     expect(await t.mutation(api.matches.requestRematch, { playerId: guestId, matchId })).toEqual({ matchId: null });
     expect(await t.run((ctx) => ctx.db.get(matchId))).toMatchObject({ hostRematch: false, guestRematch: true });
-    await t.mutation(api.privateMatch.createPrivate, { playerId: guestId });
+    await t.action(api.privateMatch.createPrivate, { playerId: guestId });
     await expectConvexErrorAsync(t.mutation(api.matches.requestRematch, { playerId: hostId, matchId }), 'OPPONENT_LEFT');
     expect(await t.run((ctx) => ctx.db.query('matches').collect())).toHaveLength(2);
   });
@@ -250,7 +250,7 @@ describe('matches', () => {
   it('a player already in another match cannot rematch', async () => {
     const t = convexTest(schema, modules);
     const { matchId, hostId } = await seedFinishedMatch(t);
-    await t.mutation(api.privateMatch.createPrivate, { playerId: hostId });
+    await t.action(api.privateMatch.createPrivate, { playerId: hostId });
     await expectConvexErrorAsync(
       t.mutation(api.matches.requestRematch, { playerId: hostId, matchId }),
       'ALREADY_IN_MATCH',
@@ -399,7 +399,7 @@ describe('matches', () => {
     expect(left?.winner).toBeUndefined();
 
     const owner = crypto.randomUUID();
-    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: owner });
+    const { code } = await t.action(api.privateMatch.createPrivate, { playerId: owner });
     const waiting = await t.run((ctx) => ctx.db.query('matches').withIndex('by_code', (q) => q.eq('code', code)).unique());
     await t.mutation(api.matches.leave, { playerId: owner, matchId: waiting!._id });
     expect(await t.run((ctx) => ctx.db.get(waiting!._id))).toMatchObject({ status: 'abandoned', endReason: 'left' });
@@ -408,7 +408,7 @@ describe('matches', () => {
   it('a waiting private code is kept alive by its host only', async () => {
     const t = convexTest(schema, modules);
     const owner = crypto.randomUUID();
-    const { code } = await t.mutation(api.privateMatch.createPrivate, { playerId: owner });
+    const { code } = await t.action(api.privateMatch.createPrivate, { playerId: owner });
     const match = await t.run((ctx) => ctx.db.query('matches').withIndex('by_code', (q) => q.eq('code', code)).unique());
     await t.mutation(api.matches.heartbeat, { playerId: owner, matchId: match!._id });
     const rows = await t.run((ctx) => ctx.db.query('presence').collect());

@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from 'convex/react';
+import { useAction, useMutation, useQuery } from 'convex/react';
 import { useState } from 'react';
 import { api } from '../../convex/_generated/api';
 import { playerId } from './identity';
@@ -7,7 +7,7 @@ import { joinErrorOf, type JoinError } from './joinErrors';
 /** Private matches for the current page load. Needs a ConvexProvider above it. */
 export function usePrivateMatch() {
   const id = playerId();
-  const createMutation = useMutation(api.privateMatch.createPrivate);
+  const createMutation = useAction(api.privateMatch.createPrivate);
   const joinMutation = useMutation(api.privateMatch.joinPrivate);
   const cancelMutation = useMutation(api.privateMatch.cancelPrivate);
   const extendMutation = useMutation(api.privateMatch.extendPrivate);
