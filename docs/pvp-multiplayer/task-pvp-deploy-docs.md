@@ -2,7 +2,7 @@
 type: task
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: pvp-deploy-docs
-status: staged
+status: released
 branch: task/pvp-deploy-docs
 worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/task-pvp-deploy-docs
 created: 2026-10-18
@@ -11,7 +11,7 @@ commit_type:         # optional override for the release subject type (default: 
 version: 0.11.1
 review_approved: 2026-10-19
 pr:                  # set by `wi pr`
-tag:                 # set by `wi release`; the tag sits on the branch's last commit
+tag: v0.11.1
 ---
 
 # Deploy Convex with the site and document PvP
@@ -101,3 +101,4 @@ Make `npm run deploy` publish both halves of the game — Convex functions to th
 - 2026-10-19 — Test audit: 31 mutants; 5 real gaps closed with tests, plus a deploy-script test of the key check (a weakened check fails it). 476 tests pass. User decision 2026-10-19: release steps 1-4 now; steps 5 (production deploy) and 6 (smoke test) stay open and run as a follow-up once the owner has created the production deploy key, .env, the production TURN key in the Convex dashboard and the Cloudflare billing notification.
 - 2026-10-19 — Staged: verification passed; version 0.11.0 → 0.11.1; no changelog file.
 - 2026-10-19 — Review approved.
+- 2026-10-19 — Released 0.11.1 as v0.11.1.
