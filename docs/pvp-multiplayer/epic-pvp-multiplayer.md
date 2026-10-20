@@ -94,7 +94,7 @@ Status column by matching the Slug column, so keep slugs exact.
 | 10 | story | pvp-match-screens | Online menus, PvP HUD and match flow | R2, R3, R6, R9, R10 | 6, 7, 9 | released |
 | 11 | story | disconnect-and-cleanup | Disconnects, forfeits and stale-data cleanup | R7, R8 | 9, 10 | released |
 | 12 | story | turn-relay | TURN relay for restrictive networks | R4 | 8 | released |
-| 13 | task | pvp-deploy-docs | Deploy Convex with the site and document PvP | R9 | 10, 11 | planned |
+| 13 | task | pvp-deploy-docs | Deploy Convex with the site and document PvP | R9 | 10, 11 | released |
 | 14 | task | pvp-production-launch | Production launch of online play (split from 13) | R9 | 13 | planned |
 
 **Independently shippable:** 1, 4 and 5 ship alone with no visible change; the campaign keeps working. 2, 3, 6, 7 and 8 can merge to `main` behind the existing build because the online entry point does not exist until 10, and 10 only shows it when `VITE_CONVEX_URL` is set. 9 cannot be played without 10. 11 must ship with or before the first public deploy of 10, or abandoned data piles up. 12 is optional and can ship any time after 8. 13 adds the deploy script, rate limit and README; 14 is the public launch.
