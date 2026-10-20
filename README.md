@@ -1,6 +1,6 @@
 # Tanks
 
-A three-quarter view tank game for the browser and your phone. Drive with WASD, aim with the mouse, bank shots off the walls, and pop every enemy tank across 50 levels.
+A three-quarter view tank game for the browser and your phone. Drive with WASD, aim with the mouse, bank shots off the walls, and pop every enemy tank across 50 levels, or take on another player online.
 
 **Play it:** https://tanks.nathanhealea.com
 
@@ -23,6 +23,28 @@ Clear the board to finish a level. You carry two shells and two mines. When you'
 Mines go off when an enemy drives near one or after 9 seconds. The blast pops every tank in range, yours included, and breaks cork blocks. The plain wood blocks don't break.
 
 On a phone, play in landscape.
+
+## Play online
+
+Choose **Play online** on the title screen. There's no account: each visit gets a random ID that's forgotten when you close the tab.
+
+- **Quick match** pairs you with the next player who searches.
+- **Create private match** gives you a six-character code, like `HK7-Q2M`, and a link to send a friend. The code works for 10 minutes; **Keep this code** gives it another 10.
+- **Join with code** takes a friend's code. Opening their link fills it in for you; you still press **Join**.
+
+A match is first to three rounds, on a new random arena each round. Your tank is the one with a dark ring around it. When the match ends, both players can ask for a rematch.
+
+**Esc** opens **Leave match?**. Leaving counts as a loss, and so does keeping the tab hidden for 15 seconds. If the connection drops, a countdown shows how long the game waits; after 15 seconds of silence it settles the match. If your opponent has gone, you win. If you're both still here and only the link failed, there's no result.
+
+Online play is capped so it stays inside the relay's free allowance: 20 matches can start per hour. If the hour is full, you'll see that you're in line, and your match starts when a spot opens. If a lot of players start games in the same minute, you may be asked to try again in a minute.
+
+### What online play shares
+
+- **With other players:** nothing that identifies you. Every match goes through Cloudflare's relay (TURN), so your opponent never sees your IP address, only the relay's. They see your tank and your moves.
+- **With Cloudflare:** your IP address, because it serves the site and relays the match traffic. The game data itself is encrypted between the two browsers.
+- **With Convex** (the game's server): your random visit ID, the match score, and when you were last connected. Finished matches are deleted after 24 hours. The connection setup messages, which contain IP addresses, are deleted as soon as the match connects, and within two minutes otherwise.
+
+The campaign stays offline and shares nothing.
 
 ## The enemies
 
@@ -59,26 +81,55 @@ npm install
 npm run dev
 ```
 
-Open the URL Vite prints. `npm run dev` also serves on your local network, so a phone on the same Wi-Fi can connect. One catch: under WSL2 your phone usually can't reach the dev server. Deploy instead (see below), or turn on WSL's mirrored networking.
+Open the URL Vite prints. Without a Convex backend the campaign works and **Play online** stays hidden. `npm run dev` also serves on your local network, so a phone on the same Wi-Fi can connect. One catch: under WSL2 your phone usually can't reach the dev server. Deploy instead (see below), or turn on WSL's mirrored networking.
 
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | Dev server with hot reload |
 | `npm run build` | Type-check, then build to `dist/` |
 | `npm run preview` | Serve the production build; the service worker only runs here |
-| `npm run typecheck` | Type-check without building |
-| `npm run deploy` | Build and publish to Cloudflare |
+| `npm run typecheck` | Type-check the game and the Convex functions |
+| `npm test` | Run the tests once |
+| `npm run deploy` | Deploy the Convex backend, then build and publish the site (see below) |
+
+### With online play
+
+Online play needs a [Convex](https://www.convex.dev) project and a Cloudflare TURN key.
+
+1. Run `npx convex dev` and follow the prompts to sign in and create a project. It writes `CONVEX_DEPLOYMENT` and `VITE_CONVEX_URL` to `.env.local` (git-ignored) and keeps your functions in sync while it runs. `.env.example` lists every variable.
+2. In the Cloudflare dashboard, open **Realtime → TURN** and create a TURN key. Set its ID and API token on your dev deployment from your own terminal:
+   ```sh
+   npx convex env set CLOUDFLARE_TURN_KEY_ID <key id>
+   npx convex env set CLOUDFLARE_TURN_KEY_API_TOKEN <api token>
+   ```
+   These stay in Convex. Never put them in a `VITE_` variable: those are compiled into the public site.
+3. In a second terminal, run `npm run dev`. Open two browser windows to play yourself.
+
+Without the TURN key, matches can't connect and the game says online matches can't start right now. That's deliberate: there's no fallback to a direct connection, so players never see each other's IP address.
 
 ## Deploy
 
-The site is a static-assets Cloudflare Worker with no server code. `wrangler.json` defines it, and it's served at `tanks.nathanhealea.com`.
+The game has two halves. Convex runs the online backend. The site is a static-assets Cloudflare Worker, defined in `wrangler.json` and served at `tanks.nathanhealea.com`.
 
-1. Create a Cloudflare API token that can deploy Workers and manage the `nathanhealea.com` zone. The zone access is what lets the deploy attach the custom domain.
-2. Put it in `.env` at the project root. `.env` is git-ignored.
+One-time setup:
+
+1. **Cloudflare:** create an API token that can deploy Workers and manage the `nathanhealea.com` zone. The zone access is what lets the deploy attach the custom domain.
+2. **Convex:** in the Convex dashboard, switch to the project's production deployment and generate a deploy key in its settings. A production key starts with `prod:`.
+3. **Put both in `.env`** at the project root. `.env` is git-ignored. Use `.env`, not `.env.local`: `.env.local` holds your dev key, and the deploy refuses anything that isn't a production key.
    ```sh
-   CLOUDFLARE_API_TOKEN=your-token
+   CLOUDFLARE_API_TOKEN=your-cloudflare-token
+   CONVEX_PROD_DEPLOY_KEY=prod:your-key
    ```
-3. Run `npm run deploy`.
+4. **Production TURN key:** create a separate TURN key for production (don't reuse the dev one). Set it from your own terminal:
+   ```sh
+   npx convex env set --prod CLOUDFLARE_TURN_KEY_ID <key id>
+   npx convex env set --prod CLOUDFLARE_TURN_KEY_API_TOKEN <api token>
+   ```
+5. **Billing notification:** in Cloudflare, set one for Realtime. The 20-matches-an-hour cap is sized to stay inside the free 1,000 GB a month, but it's an estimate, and only a billing notification catches a leaked relay login.
+
+Then run `npm run deploy`. It deploys the Convex functions to production, builds the site pointed at that backend, and publishes the site. If any step fails, the site isn't published.
+
+The backend goes live before the site. A change to how matches are recorded can strand players mid-match on the old site, so keep backend changes compatible with the previous site for one release.
 
 Every file is served with `Cache-Control: max-age=0, must-revalidate`, so a new deploy shows up on the next page load. An installed copy on a phone may need to be closed and reopened once.
 
@@ -96,8 +147,23 @@ src/
   render/    three.js scene through @react-three/fiber: tanks, arena, particles, camera
   input/     keyboard and mouse, turned into a PlayerInput each frame
   ui/        HUD and touch controls
+    online/      online menus, match screens, and the flow that ties them together
+  net/       online play in the browser
+    peer.ts        WebRTC connection; setup messages travel through Convex
+    iceServers.ts  STUN and TURN servers; TURN logins come from Convex
+    hostSession.ts the host runs step() for both players and sends snapshots
+    guestSession.ts the guest sends input and draws what the host sends
+    silence.ts     pings, lost-connection countdown, and goodbye messages
   audio/     synthesized sound effects (Web Audio, no audio files)
+convex/      the online backend
+  matchmaking.ts quick-match queue and pairing
+  privateMatch.ts private codes
+  signaling.ts   WebRTC setup messages, deleted once a match connects
+  matches.ts     scores, rematches, leaving, presence, lost connections
+  turn.ts        short-lived TURN logins from Cloudflare
+  sweep.ts       runs every minute: clears stale queue entries, dead matches, old records
 public/      manifest, service worker, icons
+scripts/     the deploy script
 ```
 
 Levels are generated rather than drawn by hand. Each level number has a fixed seed, so every player gets the same 50 maps. The generator throws out any layout where an enemy can see your spawn or can't be reached by driving.
@@ -112,18 +178,10 @@ Levels are generated rather than drawn by hand. Each level number has a fixed se
 | Difficulty curve, enemy count, level layouts | `src/game/levels.ts` |
 | Lives | `MAX_LIVES` in `src/game/config.ts` |
 
-## Built for two players later
+## How online play works
 
-The simulation is ready for networked play over WebSockets:
-
-- **One function moves the game:** `step(state, inputs)` advances the world, and it's the only thing that does.
-- **State is plain JSON:** it can be snapshotted and sent over the wire as-is.
-- **Seeded randomness:** random numbers come from a seed stored in that state, so every machine draws the same ones.
-- **Inputs are small:** each player sends a `PlayerInput` (move vector, turret angle, fire, mine), keyed by player ID.
-- **Spawns are ready:** every level already has a player 2 spawn point.
-
-The plan is to swap `LocalSession` for a networked session. One host, a player's machine or a server, runs `step()` with both players' inputs and sends out the state. Each client sends only its own input.
+The host's browser runs the real simulation, `step()` with both players' inputs, 60 times a second. It sends the guest a snapshot 30 times a second. The guest sends only its own input and draws the snapshots slightly in the past, so movement stays smooth. The two browsers talk over a WebRTC data channel through Cloudflare's relay. Convex never carries game traffic; it pairs players, passes the connection setup messages, and records the score.
 
 ## Built with
 
-[React](https://react.dev), [three.js](https://threejs.org) through [@react-three/fiber](https://r3f.docs.pmnd.rs), [Vite](https://vite.dev), TypeScript, and [Cloudflare Workers](https://developers.cloudflare.com/workers/static-assets/) for hosting.
+[React](https://react.dev), [three.js](https://threejs.org) through [@react-three/fiber](https://r3f.docs.pmnd.rs), [Vite](https://vite.dev), TypeScript, [Convex](https://www.convex.dev) for the online backend, [Cloudflare Workers](https://developers.cloudflare.com/workers/static-assets/) for hosting, and [Cloudflare Realtime TURN](https://developers.cloudflare.com/realtime/turn/) for the relay.
