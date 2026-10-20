@@ -2,7 +2,7 @@
 type: task
 epic: pvp-multiplayer
 slug: pvp-production-launch
-status: staged
+status: released
 branch: task/pvp-production-launch
 worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/task-pvp-production-launch
 created: 2026-10-19
@@ -11,7 +11,7 @@ commit_type:         # optional override for the release subject type (default: 
 version: 0.11.2
 review_approved: 2026-10-19
 pr:                  # set by `wi pr`
-tag:                 # set by `wi release`; the tag sits on the branch's last commit
+tag: v0.11.2
 ---
 
 # Production launch of online play
@@ -86,3 +86,4 @@ pvp-deploy-docs added `scripts/deploy.mjs` (`npm run deploy`), which deploys Con
 - 2026-10-19 — 2026-10-20: the owner skipped the production smoke test (AC4: quick and private matches on two networks, leave forfeit, relay-only candidates, offline campaign, Convex error logs) and did not confirm the Cloudflare billing notification. Online play is live but has not been exercised end to end in production.
 - 2026-10-19 — Staged: verification passed; version 0.11.1 → 0.11.2; no changelog file.
 - 2026-10-19 — Review approved.
+- 2026-10-19 — Released 0.11.2 as v0.11.2.
