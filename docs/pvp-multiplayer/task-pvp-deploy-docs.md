@@ -2,13 +2,13 @@
 type: task
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: pvp-deploy-docs
-status: in-progress
+status: staged
 branch: task/pvp-deploy-docs
 worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/task-pvp-deploy-docs
 created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
-version:             # set by `wi stage`
+version: 0.11.1
 review_approved:     # set by `wi accept`
 pr:                  # set by `wi pr`
 tag:                 # set by `wi release`; the tag sits on the branch's last commit
@@ -99,3 +99,4 @@ Make `npm run deploy` publish both halves of the game — Convex functions to th
 - 2026-10-19 — Step 1: verified from convex deploy --help that it targets the deployment of whatever CONVEX_DEPLOY_KEY it finds, and by a dry run that a key given inline wins over .env.local's dev key. scripts/deploy.mjs requires CONVEX_PROD_DEPLOY_KEY (prod:) from .env; tested with no key, a dev key and an invalid prod key: each stops before wrangler (AC2 locally). T1 passed before any change (no env file was tracked); it is a guard.
 - 2026-10-19 — Review fixes (612cc7d..59782ee): relay candidates' related address (the player's own IP as the relay saw it) is blanked in every outgoing candidate, offer and answer — found by the privacy review, needs a real-browser check that relay connections still form; README production TURN step moved to the dashboard because the CLI ignores --prod while .env.local holds a dev deploy key (confirmed in convex/dist/esm/cli/lib/api.js:118-121); README privacy notes completed (Convex sees IPs, relay metadata, all match records 24 h, queue); .gitignore ignores .env*; .env.example documents VITE_ICE_SERVERS; Risks corrected: the rate limit does not slow code guessing. Steps 1-4 done; stopping before step 5 (production deploy, high-risk) for sign-off.
 - 2026-10-19 — Test audit: 31 mutants; 5 real gaps closed with tests, plus a deploy-script test of the key check (a weakened check fails it). 476 tests pass. User decision 2026-10-19: release steps 1-4 now; steps 5 (production deploy) and 6 (smoke test) stay open and run as a follow-up once the owner has created the production deploy key, .env, the production TURN key in the Convex dashboard and the Cloudflare billing notification.
+- 2026-10-19 — Staged: verification passed; version 0.11.0 → 0.11.1; no changelog file.
