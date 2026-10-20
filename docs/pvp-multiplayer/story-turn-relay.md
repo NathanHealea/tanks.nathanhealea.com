@@ -9,7 +9,7 @@ created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
 version: 0.11.0
-review_approved:     # set by `wi accept`
+review_approved: 2026-10-19
 pr:                  # set by `wi pr`
 tag:                 # set by `wi release`; the tag sits on the branch's last commit
 ---
@@ -122,3 +122,4 @@ The `ttl` requested is 3600 s (R1). A match lasts minutes; credentials are only 
 - 2026-10-19 — User decision 2026-10-19 on the HIGH finding: count a start when the match connects (markConnected), check only at pairing. R7 text updated. Blocking the hour now needs 20 real relayed connections; full protection needs player identity (out of scope).
 - 2026-10-19 — Manual testing 2026-10-19 on dev with the TURN key set: the user reported one CONNECT_TIMEOUT on a first attempt, then 'the game worked out pretty well'. Diagnosis of the timeout: the action returns STUN plus six TURN URLs with a login and the filter keeps them all; this machine reaches turn.cloudflare.com on TCP 3478/443/5349/80. Cause not found; candidates: a slow first action call (cold start) eating into the faster side's 15 s connect timer (review LOW). AC2 bundle grep, AC4 UDP-blocked, AC5 relay-only candidates and traffic measurement were not reported. The token was typed into the session transcript: use this key for dev only, revoke it after testing, and create a separate key for production.
 - 2026-10-19 — Staged: verification passed; version 0.10.0 → 0.11.0; no changelog file.
+- 2026-10-19 — Review approved.
