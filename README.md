@@ -26,7 +26,7 @@ On a phone, play in landscape.
 
 ## Play online
 
-Choose **Play online** on the title screen. There's no account: each visit gets a random ID that's forgotten when you close the tab.
+Choose **Play online** on the title screen. There's no account: each time you open the page you get a new random ID, and your browser doesn't save it.
 
 - **Quick match** pairs you with the next player who searches.
 - **Create private match** gives you a six-character code, like `HK7-Q2M`, and a link to send a friend. The code works for 10 minutes; **Keep this code** gives it another 10.
@@ -40,9 +40,11 @@ Online play is capped so it stays inside the relay's free allowance: 20 matches 
 
 ### What online play shares
 
-- **With other players:** nothing that identifies you. Every match goes through Cloudflare's relay (TURN), so your opponent never sees your IP address, only the relay's. They see your tank and your moves.
-- **With Cloudflare:** your IP address, because it serves the site and relays the match traffic. The game data itself is encrypted between the two browsers.
-- **With Convex** (the game's server): your random visit ID, the match score, and when you were last connected. Finished matches are deleted after 24 hours. The connection setup messages, which contain IP addresses, are deleted as soon as the match connects, and within two minutes otherwise.
+Your IP address is your internet address. It can show roughly where you are.
+
+- **With other players:** nothing that identifies you. Every match goes through Cloudflare's relay, so your opponent never sees your IP address, only the relay's. They see your tank and your moves.
+- **With Cloudflare:** your IP address, because it serves the site and relays the match traffic. The relay can see that two addresses played each other, when, and how much data they sent, but not the game data, which is encrypted between the two browsers.
+- **With Convex** (the game's server): your IP address, because your browser connects to it; your random ID; and for each match, whether you were host or guest, the score, how it ended, the private code if there was one, and when you were last connected. Every match record is deleted 24 hours after the match starts. While you wait for a quick match, Convex holds your ID until you're paired or leave. The connection setup messages are deleted as soon as the match connects, and within two minutes otherwise.
 
 The campaign stays offline and shares nothing.
 
@@ -120,11 +122,7 @@ One-time setup:
    CLOUDFLARE_API_TOKEN=your-cloudflare-token
    CONVEX_PROD_DEPLOY_KEY=prod:your-key
    ```
-4. **Production TURN key:** create a separate TURN key for production (don't reuse the dev one). Set it from your own terminal:
-   ```sh
-   npx convex env set --prod CLOUDFLARE_TURN_KEY_ID <key id>
-   npx convex env set --prod CLOUDFLARE_TURN_KEY_API_TOKEN <api token>
-   ```
+4. **Production TURN key:** create a separate TURN key for production (don't reuse the dev one). In the Convex dashboard, switch to the production deployment and add `CLOUDFLARE_TURN_KEY_ID` and `CLOUDFLARE_TURN_KEY_API_TOKEN` in its environment variable settings. Don't use `npx convex env set --prod` for this: with your dev key in `.env.local`, the CLI ignores `--prod` and writes to the dev deployment.
 5. **Billing notification:** in Cloudflare, set one for Realtime. The 20-matches-an-hour cap is sized to stay inside the free 1,000 GB a month, but it's an estimate, and only a billing notification catches a leaked relay login.
 
 Then run `npm run deploy`. It deploys the Convex functions to production, builds the site pointed at that backend, and publishes the site. If any step fails, the site isn't published.
