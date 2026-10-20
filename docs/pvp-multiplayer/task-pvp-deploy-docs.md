@@ -36,6 +36,7 @@ Make `npm run deploy` publish both halves of the game — Convex functions to th
 **Out of scope**
 
 - CI/CD pipelines.
+- ~~Creating the production deployment, running the first production deploy, and the production smoke test (former steps 5 and 6; R1's live run, R5, R8)~~: moved to pvp-production-launch so this item's code could be released first (user decision 2026-10-19).
 
 ## Requirements
 
@@ -73,12 +74,10 @@ Make `npm run deploy` publish both halves of the game — Convex functions to th
 2. [x] Add the sitewide matchmaking rate limit and its player message — touches `convex/lib/rateLimit.ts`, `convex/schema.ts`, `convex/matchmaking.ts`, `convex/privateMatch.ts`, `convex/sweep.ts`, `convex/rateLimit.test.ts`, `src/ui/online/*` — tests T2
 3. [x] Draw private codes in an action with `crypto.getRandomValues` — touches `convex/privateMatch.ts`, `convex/privateMatch.test.ts`, `src/net/usePrivateMatch.ts` — tests T3
 4. [x] Update the README — touches `README.md` — tests none (read-through)
-5. [ ] Create the production Convex deployment, set its environment variables (the owner sets the TURN key), and deploy — touches nothing in the repo — tests none (manual AC1, AC2)
-6. [ ] Run the production smoke test and record the results — touches this document — tests none (manual R5)
 
 **Must not change:** The Cloudflare Worker config in `wrangler.json`, the custom domain, and the campaign's offline install.
 
-**High-risk steps:** Step 5 — creates production infrastructure and publishes to the public site; cannot be undone by `git revert`. Stop for sign-off before running it. Step 3 changes how a security-relevant value is generated; review its tests with the security reviewer.
+**High-risk steps:** The production deploy moved to pvp-production-launch. Step 3 changes how a security-relevant value is generated; review its tests with the security reviewer.
 
 ## Risks and open questions
 
@@ -99,3 +98,4 @@ Make `npm run deploy` publish both halves of the game — Convex functions to th
 - 2026-10-19 — Plan revised 2026-10-19 after items 10-12: R4 relay-only wording; R6 hand-built sitewide limit of 120 calls/min (user decision); R7 codes from crypto.getRandomValues in an action (proposed); R8 production TURN key and billing notification; steps now 1 deploy script, 2 rate limit, 3 codes, 4 README, 5 production deploy (high-risk), 6 smoke test. Confirmed from Convex docs: deploy --cmd sets VITE_CONVEX_URL, builds, then pushes the backend. Awaiting the user's approval of the revised plan.
 - 2026-10-19 — Step 1: verified from convex deploy --help that it targets the deployment of whatever CONVEX_DEPLOY_KEY it finds, and by a dry run that a key given inline wins over .env.local's dev key. scripts/deploy.mjs requires CONVEX_PROD_DEPLOY_KEY (prod:) from .env; tested with no key, a dev key and an invalid prod key: each stops before wrangler (AC2 locally). T1 passed before any change (no env file was tracked); it is a guard.
 - 2026-10-19 — Review fixes (612cc7d..59782ee): relay candidates' related address (the player's own IP as the relay saw it) is blanked in every outgoing candidate, offer and answer — found by the privacy review, needs a real-browser check that relay connections still form; README production TURN step moved to the dashboard because the CLI ignores --prod while .env.local holds a dev deploy key (confirmed in convex/dist/esm/cli/lib/api.js:118-121); README privacy notes completed (Convex sees IPs, relay metadata, all match records 24 h, queue); .gitignore ignores .env*; .env.example documents VITE_ICE_SERVERS; Risks corrected: the rate limit does not slow code guessing. Steps 1-4 done; stopping before step 5 (production deploy, high-risk) for sign-off.
+- 2026-10-19 — Test audit: 31 mutants; 5 real gaps closed with tests, plus a deploy-script test of the key check (a weakened check fails it). 476 tests pass. User decision 2026-10-19: release steps 1-4 now; steps 5 (production deploy) and 6 (smoke test) stay open and run as a follow-up once the owner has created the production deploy key, .env, the production TURN key in the Convex dashboard and the Cloudflare billing notification.
