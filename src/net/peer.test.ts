@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createFakeRtcPair, createSignalBus } from './fakeRtc';
+import { createFakeRtcPair, createSignalBus, playerAddress } from './fakeRtc';
 import type { Channel } from './link';
 import { connectPeer, PeerError, PROTOCOL_VERSION, type Signal } from './peer';
 
@@ -46,8 +46,15 @@ describe('connectPeer', () => {
     expect(guestSent).toContain('answer');
     expect(guestSent).toContain('ice');
     expect(guestSent).not.toContain('offer');
-    expect(rtc.guest.addedCandidates.map((c) => c.candidate)).toEqual([expect.stringContaining('192.0.2.1')]);
-    expect(rtc.host.addedCandidates.map((c) => c.candidate)).toEqual([expect.stringContaining('192.0.2.2')]);
+    expect(rtc.guest.addedCandidates.map((c) => c.candidate)).toEqual([expect.stringContaining('198.51.100.1 ')]);
+    expect(rtc.host.addedCandidates.map((c) => c.candidate)).toEqual([expect.stringContaining('198.51.100.2 ')]);
+
+    // Neither player's own address leaves their browser: not in a candidate, not in the offer or answer.
+    for (const role of ['host', 'guest'] as const) {
+      for (const signal of bus.sentBy(role)) {
+        expect(signal.payload).not.toContain(playerAddress(role));
+      }
+    }
 
     const atGuest: [Channel, string][] = [];
     guestLink.onMessage((channel, message) => atGuest.push([channel, message]));

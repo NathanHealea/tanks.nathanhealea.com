@@ -105,13 +105,13 @@ export class FakePeerConnection {
   }
 
   async createOffer(): Promise<RTCSessionDescriptionInit> {
-    this.pending = { type: 'offer', sdp: 'fake' };
+    this.pending = { type: 'offer', sdp: fakeSdp(this.role) };
     return { ...this.pending };
   }
 
   async createAnswer(): Promise<RTCSessionDescriptionInit> {
     if (!this.remoteDescription) throw new DOMException('no remote offer', 'InvalidStateError');
-    this.pending = { type: 'answer', sdp: 'fake' };
+    this.pending = { type: 'answer', sdp: fakeSdp(this.role) };
     return { ...this.pending };
   }
 
@@ -165,9 +165,23 @@ export class FakePeerConnection {
   }
 }
 
+/** Each player's own address (RFC 5737 documentation range); it must never reach the other player. */
+export function playerAddress(role: Role): string {
+  return `203.0.113.${role === 'host' ? 1 : 2}`;
+}
+
+function relayAddress(role: Role): string {
+  return `198.51.100.${role === 'host' ? 1 : 2}`;
+}
+
+function fakeSdp(role: Role): string {
+  return ['v=0', `a=candidate:1 1 udp 41885439 ${relayAddress(role)} 50000 typ relay raddr ${playerAddress(role)} rport 54321`, ''].join('\r\n');
+}
+
 function fakeCandidate(role: Role) {
   const json: FakeIceCandidateJson = {
-    candidate: `candidate:1 1 udp 2122260223 192.0.2.${role === 'host' ? 1 : 2} 50000 typ host`,
+    // A relay candidate whose related address is the player's own public address, as relay-only play produces.
+    candidate: `candidate:1 1 udp 41885439 ${relayAddress(role)} 50000 typ relay raddr ${playerAddress(role)} rport 54321`,
     sdpMid: '0',
     sdpMLineIndex: 0,
   };

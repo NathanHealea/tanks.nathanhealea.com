@@ -1,4 +1,5 @@
 import type { Channel, Link } from './link';
+import { redactCandidate, redactSdp } from './redact';
 
 /** Bumped whenever messages between the two browsers change shape, so mismatched builds refuse to play. */
 export const PROTOCOL_VERSION = 1;
@@ -91,7 +92,9 @@ export function connectPeer(options: PeerOptions): Promise<Link> {
     };
 
     pc.onicecandidate = (event) => {
-      if (event.candidate) send('ice', event.candidate.toJSON ? event.candidate.toJSON() : event.candidate);
+      if (!event.candidate) return;
+      const candidate = event.candidate.toJSON ? event.candidate.toJSON() : event.candidate;
+      send('ice', { ...candidate, candidate: redactCandidate(candidate.candidate ?? '') });
     };
     pc.oniceconnectionstatechange = () => {
       if (pc.iceConnectionState === 'failed') fail('CONNECT_FAILED');
@@ -155,7 +158,7 @@ export function connectPeer(options: PeerOptions): Promise<Link> {
         await flushIce();
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
-        send('answer', pc.localDescription ?? answer);
+        send('answer', redactDescription(pc.localDescription ?? answer));
       } else if (signal.kind === 'answer' && role === 'host') {
         await pc.setRemoteDescription(payload);
         await flushIce();
@@ -183,7 +186,7 @@ export function connectPeer(options: PeerOptions): Promise<Link> {
       (async () => {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-        send('offer', pc.localDescription ?? offer);
+        send('offer', redactDescription(pc.localDescription ?? offer));
       })().catch((err) => {
         console.error('Creating the WebRTC offer failed', err);
         fail('CONNECT_FAILED');
@@ -233,4 +236,8 @@ function wrap(pc: RTCPeerConnection, ctrl: RTCDataChannel, state: RTCDataChannel
       onClosed();
     },
   };
+}
+
+function redactDescription(description: RTCSessionDescriptionInit): RTCSessionDescriptionInit {
+  return { type: description.type, sdp: redactSdp(description.sdp ?? '') };
 }
