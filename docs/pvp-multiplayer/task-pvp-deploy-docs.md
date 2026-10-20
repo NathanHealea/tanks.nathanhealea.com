@@ -2,9 +2,9 @@
 type: task
 epic: pvp-multiplayer    # removed by `wi new` when there is no parent epic
 slug: pvp-deploy-docs
-status: planned      # planned | in-progress | changes-requested | staged | released
+status: in-progress
 branch: task/pvp-deploy-docs
-worktree_path:       # set by `wi start`
+worktree_path: /Users/nhealea/Personal/Development/tanks.nathanhealea.com/pvp-tanks-worktrees/task-pvp-deploy-docs
 created: 2026-10-18
 approved: 2026-10-18
 commit_type:         # optional override for the release subject type (default: story=feat, bug=fix, task=chore)
@@ -86,3 +86,4 @@ Make `npm run deploy` publish both halves of the game — Convex functions to th
 - 2026-10-18 — Planned.
 - 2026-10-18 — Plan approved.
 - 2026-10-18 — Added R6/AC5/T2: rate-limit the public matchmaking functions before the public deploy, deferred here from the random-matchmaking security review at the user's direction. Mechanism is an open decision.
+- 2026-10-19 — Started on branch task/pvp-deploy-docs from origin/pvp-tank.
